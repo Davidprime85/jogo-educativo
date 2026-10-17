@@ -1,0 +1,163 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Robot Treasure Island</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link href="https://fonts.googleapis.com/css2?family=Fredoka:wght@400;600;700&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="css/style.css">
+</head>
+<body>
+  <div id="stage">
+    <div id="game"></div>
+
+    <!-- HUD (placar) -->
+    <div id="hud" class="hidden">
+      <div class="hud-left">
+        <span id="hud-lives" class="hud-box" title="Lives"></span>
+        <span class="hud-box" title="Energy shots">⚡ <b id="hud-ammo">0</b></span>
+        <span class="hud-box" title="Coins">🪙 <b id="hud-coins">0</b></span>
+        <span class="hud-box" title="Score">⭐ <b id="hud-score">0</b></span>
+      </div>
+      <div class="hud-center"><span id="hud-level" class="hud-box level-name"></span></div>
+      <div class="hud-right">
+        <button id="btn-translate" class="hud-btn" title="Translate (T)">🌐 Translate</button>
+        <button id="btn-sound" class="hud-btn" title="Sound (M)">🔊</button>
+        <button id="btn-pause" class="hud-btn" title="Pause (P)">❚❚</button>
+      </div>
+    </div>
+
+    <!-- Barra de vida do chefão -->
+    <div id="boss-bar" class="hidden">
+      <span id="boss-name"></span>
+      <div class="boss-hp"><div id="boss-hp-fill"></div></div>
+    </div>
+
+    <!-- Caixa de fala / placas -->
+    <div id="dialog" class="hidden">
+      <div id="dialog-who"></div>
+      <div id="dialog-en"></div>
+      <div id="dialog-pt" class="pt"></div>
+    </div>
+
+    <!-- Janela de perguntas (baús, portas, chefão) -->
+    <div id="modal" class="overlay hidden">
+      <div class="card question-card">
+        <div class="card-top">
+          <h2 id="q-title"></h2>
+          <button class="translate-inline">🌐 Translate</button>
+        </div>
+        <div id="q-text"></div>
+        <div id="q-text-pt" class="pt"></div>
+        <canvas id="q-picture" width="220" height="160" class="hidden"></canvas>
+        <div id="q-options"></div>
+        <div id="q-feedback" class="hidden">
+          <div id="q-result"></div>
+          <div id="q-result-pt" class="pt"></div>
+          <div id="q-explain"></div>
+          <div id="q-visual"></div>
+          <button id="q-ok" class="big-btn">OK <small>(Enter)</small></button>
+        </div>
+      </div>
+    </div>
+
+    <!-- Telas: início, pausa, game over, fase completa, vitória -->
+    <div id="screen-title" class="overlay screen hidden">
+      <div class="title-box">
+        <h1>Robot<br><span>Treasure Island</span></h1>
+        <p class="subtitle">Help Bolt the robot find the lost treasure!</p>
+        <p class="pt subtitle">Ajude o robô Bolt a encontrar o tesouro perdido!</p>
+        <div class="menu-buttons">
+          <button id="btn-play" class="big-btn">▶ Play</button>
+          <button id="btn-continue" class="big-btn alt hidden">⟳ Continue</button>
+          <button id="btn-help" class="big-btn small">❓ How to play</button>
+          <button class="translate-inline big-btn small">🌐 Translate</button>
+        </div>
+        <div id="title-levels" class="level-select"></div>
+        <p id="title-save" class="save-info"></p>
+      </div>
+    </div>
+
+    <div id="screen-help" class="overlay screen hidden">
+      <div class="card">
+        <h2>How to play</h2>
+        <p class="pt">Como jogar</p>
+        <table class="keys">
+          <tr><td><kbd>←</kbd> <kbd>→</kbd></td><td>Walk <span class="pt">Andar</span></td></tr>
+          <tr><td><kbd>Space</kbd></td><td>Jump <span class="pt">Pular</span></td></tr>
+          <tr><td><kbd>X</kbd></td><td>Shoot <span class="pt">Atirar</span></td></tr>
+          <tr><td><kbd>T</kbd></td><td>Translate <span class="pt">Traduzir</span></td></tr>
+          <tr><td><kbd>P</kbd></td><td>Pause <span class="pt">Pausar</span></td></tr>
+          <tr><td><kbd>1</kbd>-<kbd>4</kbd></td><td>Choose an answer <span class="pt">Escolher a resposta</span></td></tr>
+        </table>
+        <p>Jump on enemies or shoot them. Open chests with math. Open doors with English words. Beat the boss by answering questions!</p>
+        <p class="pt">Pule nos inimigos ou atire neles. Abra os baús com matemática. Abra as portas com palavras em inglês. Vença o chefão respondendo às perguntas!</p>
+        <button id="btn-help-close" class="big-btn">OK</button>
+      </div>
+    </div>
+
+    <div id="screen-pause" class="overlay screen hidden">
+      <div class="card">
+        <h2>Paused</h2><p class="pt">Pausado</p>
+        <div class="menu-buttons">
+          <button id="btn-resume" class="big-btn">▶ Resume</button>
+          <button id="btn-quit" class="big-btn alt">🏠 Menu</button>
+        </div>
+      </div>
+    </div>
+
+    <div id="screen-gameover" class="overlay screen hidden">
+      <div class="card">
+        <h2>Game Over</h2>
+        <p>Don't give up! Try again.</p>
+        <p class="pt">Não desista! Tente de novo.</p>
+        <div class="menu-buttons">
+          <button id="btn-retry" class="big-btn">⟳ Try again</button>
+          <button id="btn-go-menu" class="big-btn alt">🏠 Menu</button>
+        </div>
+      </div>
+    </div>
+
+    <div id="screen-complete" class="overlay screen hidden">
+      <div class="card">
+        <h2>Level Complete!</h2>
+        <p class="pt">Fase completa!</p>
+        <div id="complete-stats"></div>
+        <p id="complete-next"></p>
+        <p id="complete-next-pt" class="pt"></p>
+        <div class="menu-buttons">
+          <button id="btn-next" class="big-btn">▶ Next level</button>
+          <button id="btn-again" class="big-btn alt">⟳ Play again</button>
+          <button id="btn-complete-menu" class="big-btn alt">🏠 Menu</button>
+        </div>
+      </div>
+    </div>
+
+    <div id="screen-victory" class="overlay screen hidden">
+      <div class="card victory">
+        <h2>You found the treasure!</h2>
+        <p class="pt">Você encontrou o tesouro!</p>
+        <canvas id="treasure-canvas" width="320" height="200"></canvas>
+        <div id="victory-stats"></div>
+        <button id="btn-victory-menu" class="big-btn">🏠 Menu</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Phaser 3 via CDN; se estiver sem internet, usa a cópia local -->
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/phaser/3.80.1/phaser.min.js"></script>
+  <script>window.Phaser || document.write('<script src="lib/phaser.min.js"><\/script>');</script>
+
+  <script src="js/save.js"></script>
+  <script src="js/sound.js"></script>
+  <script src="js/pictures.js"></script>
+  <script src="js/questions.js"></script>
+  <script src="js/levels.js"></script>
+  <script src="js/textures.js"></script>
+  <script src="js/ui.js"></script>
+  <script src="js/scenes/TitleScene.js"></script>
+  <script src="js/scenes/LevelScene.js"></script>
+  <script src="js/main.js"></script>
+</body>
+</html>
