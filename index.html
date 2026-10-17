@@ -2,7 +2,15 @@
 <html lang="en">
 <head>
   <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
+  <meta name="theme-color" content="#0b2540">
+  <meta name="mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+  <meta name="apple-mobile-web-app-title" content="Robot Island">
+  <link rel="manifest" href="manifest.json">
+  <link rel="icon" href="icons/icon-192.png">
+  <link rel="apple-touch-icon" href="icons/icon-192.png">
   <title>Robot Treasure Island</title>
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link href="https://fonts.googleapis.com/css2?family=Fredoka:wght@400;600;700&display=swap" rel="stylesheet">
@@ -39,6 +47,18 @@
       <div id="dialog-who"></div>
       <div id="dialog-en"></div>
       <div id="dialog-pt" class="pt"></div>
+    </div>
+
+    <!-- Controles de toque (só aparecem em celular/tablet) -->
+    <div id="touch-controls" class="hidden">
+      <div id="touch-pad">
+        <div class="pad-half">◀</div>
+        <div class="pad-half">▶</div>
+      </div>
+      <div class="touch-right">
+        <div id="touch-shoot" class="touch-btn">⚡<small>SHOOT</small></div>
+        <div id="touch-jump" class="touch-btn big">⬆<small>JUMP</small></div>
+      </div>
     </div>
 
     <!-- Janela de perguntas (baús, portas, chefão) -->
@@ -91,6 +111,8 @@
           <tr><td><kbd>P</kbd></td><td>Pause <span class="pt">Pausar</span></td></tr>
           <tr><td><kbd>1</kbd>-<kbd>4</kbd></td><td>Choose an answer <span class="pt">Escolher a resposta</span></td></tr>
         </table>
+        <p class="touch-only">📱 On a phone or tablet: use ◀ ▶ to walk, ⬆ to jump and ⚡ to shoot. Tap the answers.</p>
+        <p class="pt touch-only">📱 No celular ou tablet: use ◀ ▶ para andar, ⬆ para pular e ⚡ para atirar. Toque nas respostas.</p>
         <p>Jump on enemies or shoot them. Open chests with math. Open doors with English words. Beat the boss by answering questions!</p>
         <p class="pt">Pule nos inimigos ou atire neles. Abra os baús com matemática. Abra as portas com palavras em inglês. Vença o chefão respondendo às perguntas!</p>
         <button id="btn-help-close" class="big-btn">OK</button>
@@ -145,6 +167,13 @@
     </div>
   </div>
 
+  <!-- Aviso para virar o aparelho -->
+  <div id="rotate">
+    <div class="rotate-icon">📱↻</div>
+    <p>Turn your device sideways to play!</p>
+    <p class="rotate-pt">Vire o aparelho de lado para jogar!</p>
+  </div>
+
   <!-- Phaser 3 via CDN; se estiver sem internet, usa a cópia local -->
   <script src="https://cdnjs.cloudflare.com/ajax/libs/phaser/3.80.1/phaser.min.js"></script>
   <script>window.Phaser || document.write('<script src="lib/phaser.min.js"><\/script>');</script>
@@ -156,6 +185,7 @@
   <script src="js/levels.js"></script>
   <script src="js/textures.js"></script>
   <script src="js/ui.js"></script>
+  <script src="js/touch.js"></script>
   <script src="js/scenes/TitleScene.js"></script>
   <script src="js/scenes/LevelScene.js"></script>
   <script src="js/main.js"></script>

@@ -5,6 +5,7 @@ const Game = {
 
   start() {
     UI.init();
+    Touch.init();
     this.phaser = new Phaser.Game({
       type: Phaser.AUTO,
       parent: 'game',
@@ -35,6 +36,11 @@ const Game = {
     click('btn-victory-menu', () => this.showTitle());
     click('btn-next', () => this.playLevel(this.currentLevel + 1));
 
+    // trocou de app ou de aba no celular: pausa o jogo
+    document.addEventListener('visibilitychange', () => {
+      if (document.hidden && this.phaser.scene.isActive('Level') && !UI.modalOpen) this.togglePause();
+    });
+
     window.addEventListener('keydown', e => {
       if ((e.code === 'KeyP' || e.code === 'Escape') && !UI.modalOpen) this.togglePause();
       // Enter no menu inicial começa o jogo
@@ -53,6 +59,7 @@ const Game = {
     }
     UI.hideScreens();
     UI.hide('hud');
+    UI.hide('touch-controls');
     UI.hide('modal');
     UI.hideDialog();
     UI.bossBar(null);
@@ -77,6 +84,7 @@ const Game = {
     const level = LEVELS[n - 1];
     if (!level || !level.ready) return;
     this.currentLevel = n;
+    goFullscreen();
     UI.hideScreens();
     UI.hide('modal');
     const sm = this.phaser.scene;
@@ -95,6 +103,7 @@ const Game = {
     } else if (sm.isPaused('Level')) {
       sm.resume('Level');
       sm.getScene('Level').input.keyboard.resetKeys();
+      Touch.reset();
       UI.hide('screen-pause');
     }
   },

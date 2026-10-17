@@ -22,6 +22,7 @@ const UI = {
       if (this.modalOpen && this.modalKeyHandler) this.modalKeyHandler(e);
     });
     window.addEventListener('pointerdown', () => Sound.resume());
+    window.addEventListener('touchend', () => Sound.resume(), { passive: true });
 
     // escala o palco para caber na janela
     const fit = () => {
@@ -29,6 +30,8 @@ const UI = {
       $('stage').style.transform = `translate(-50%, -50%) scale(${s})`;
     };
     window.addEventListener('resize', fit);
+    window.addEventListener('orientationchange', () => setTimeout(fit, 300));
+    if (window.visualViewport) window.visualViewport.addEventListener('resize', fit);
     fit();
   },
 

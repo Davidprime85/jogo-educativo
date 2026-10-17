@@ -3,7 +3,13 @@
 Jogo educativo de plataforma 2D para navegador (crianças de ~10 anos).
 Matemática (multiplicação e frações) + inglês (frases simples).
 
-## Como jogar
+## Jogar online (computador, celular e tablet)
+👉 https://davidprime85.github.io/jogo-educativo/
+
+No celular/tablet: deite o aparelho. Aparecem botões ◀ ▶ (andar), ⬆ (pular) e ⚡ (atirar).
+Dica: use "Adicionar à tela inicial" para abrir como app, em tela cheia.
+
+## Como jogar no computador sem internet
 1. Baixe/clone a pasta.
 2. Dê **duplo clique em `index.html`** — abre no navegador (Chrome, Edge ou Firefox).
    - Com internet, o Phaser vem do CDN. Sem internet, usa a cópia em `lib/phaser.min.js`.

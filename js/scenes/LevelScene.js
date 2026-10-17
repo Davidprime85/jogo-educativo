@@ -50,11 +50,13 @@ class LevelScene extends Phaser.Scene {
 
     UI.setLevelName(L);
     UI.show('hud');
+    UI.show('touch-controls');
+    Touch.reset();
     UI.bossBar(null);
     this.refreshHud();
     this.time.delayedCall(500, () => this.speech('Bolt', L.intro.en, L.intro.pt, 4500));
 
-    this.events.once('shutdown', () => { UI.hideDialog(); UI.bossBar(null); });
+    this.events.once('shutdown', () => { UI.hideDialog(); UI.bossBar(null); UI.hide('touch-controls'); });
   }
 
   createAnims() {
@@ -196,7 +198,7 @@ class LevelScene extends Phaser.Scene {
     const onGround = body.blocked.down || body.touching.down;
     if (onGround) this.lastGround = time;
 
-    const dir = ((k.right.isDown || k.d.isDown) ? 1 : 0) - ((k.left.isDown || k.a.isDown) ? 1 : 0);
+    const dir = ((k.right.isDown || k.d.isDown || Touch.right) ? 1 : 0) - ((k.left.isDown || k.a.isDown || Touch.left) ? 1 : 0);
     if (dir !== 0) this.facing = dir;
     // aceleração suave (independe do FPS)
     const rate = onGround ? 0.28 : 0.14;
@@ -204,8 +206,8 @@ class LevelScene extends Phaser.Scene {
     p.setVelocityX(body.velocity.x + (dir * SPEED - body.velocity.x) * f);
 
     // pulo com "coyote time" e buffer: fica mais fácil acertar o pulo
-    const jumpPressed = Phaser.Input.Keyboard.JustDown(k.jump) || Phaser.Input.Keyboard.JustDown(k.up) || Phaser.Input.Keyboard.JustDown(k.w);
-    const jumpDown = k.jump.isDown || k.up.isDown || k.w.isDown;
+    const jumpPressed = Phaser.Input.Keyboard.JustDown(k.jump) || Phaser.Input.Keyboard.JustDown(k.up) || Phaser.Input.Keyboard.JustDown(k.w) || Touch.consume('jump');
+    const jumpDown = k.jump.isDown || k.up.isDown || k.w.isDown || Touch.jump;
     if (jumpPressed) this.jumpBuffer = time;
     if (this.jumpBuffer && time - this.jumpBuffer < 130 && time - this.lastGround < 110) {
       p.setVelocityY(-JUMP);
@@ -226,7 +228,7 @@ class LevelScene extends Phaser.Scene {
     else if (Math.abs(body.velocity.x) > 40) { if (!p.anims.isPlaying) p.play('walk'); }
     else { p.anims.stop(); p.setTexture('robot_idle'); }
 
-    if (Phaser.Input.Keyboard.JustDown(k.shoot)) this.shoot();
+    if (Phaser.Input.Keyboard.JustDown(k.shoot) || Touch.consume('shoot')) this.shoot();
 
     // caiu na água
     if (p.y > 600) this.fallInWater();
@@ -330,7 +332,7 @@ class LevelScene extends Phaser.Scene {
     if (stomp) {
       this.killEnemy(enemy, true);
       p.setVelocityY(-420);
-      this.jumpHeld = this.keys.jump.isDown;
+      this.jumpHeld = this.keys.jump.isDown || Touch.jump;
     } else {
       this.hurt(enemy.x);
     }
@@ -397,6 +399,7 @@ class LevelScene extends Phaser.Scene {
     this.tweens.resumeAll();
     this.time.paused = false;
     this.input.keyboard.resetKeys();
+    Touch.reset();
     this.jumpBuffer = 0;
   }
 
