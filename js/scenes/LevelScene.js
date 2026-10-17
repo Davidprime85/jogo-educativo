@@ -72,20 +72,21 @@ class LevelScene extends Phaser.Scene {
     this.solids = this.physics.add.staticGroup();
     this.oneWay = this.physics.add.staticGroup();
 
-    // água nos buracos
-    this.waters = [];
+    // água nos buracos (balança de leve)
     for (let i = 0; i < L.ground.length - 1; i++) {
       const x0 = L.ground[i][1], x1 = L.ground[i + 1][0];
-      this.waters.push(this.add.tileSprite(x0 - 10, GROUND_Y + 24, x1 - x0 + 20, 60, 'water').setOrigin(0, 0).setDepth(2));
+      const tiles = this.tileRow(x0 - 30, GROUND_Y + 24, x1 - x0 + 60, 'water', 2);
+      this.tweens.add({ targets: tiles, x: '+=12', duration: 1400, yoyo: true, repeat: -1, ease: 'Sine.easeInOut' });
     }
 
     L.ground.forEach(([x0, x1]) => {
-      const t = this.add.tileSprite(x0, GROUND_Y, x1 - x0, 80, 'ground_beach').setOrigin(0, 0).setDepth(1);
-      this.solids.add(t);
+      this.tileRow(x0, GROUND_Y, x1 - x0, 'ground_beach', 1);
+      this.solids.add(this.add.zone(x0, GROUND_Y, x1 - x0, 80).setOrigin(0, 0));
     });
 
     L.platforms.forEach(([x, y, w]) => {
-      const p = this.add.tileSprite(x, y, w, 20, 'plank').setOrigin(0, 0).setDepth(1);
+      this.tileRow(x, y, w, 'plank', 1);
+      const p = this.add.zone(x, y, w, 20).setOrigin(0, 0);
       this.oneWay.add(p);
       p.body.checkCollision.down = false;
       p.body.checkCollision.left = false;
@@ -108,6 +109,19 @@ class LevelScene extends Phaser.Scene {
 
     // checkpoints
     this.flags = L.checkpoints.map(x => ({ x, img: this.add.image(x, GROUND_Y, 'flag_off').setOrigin(0.15, 1).setDepth(0), on: false }));
+  }
+
+  // Repete uma imagem lado a lado. (Não usamos TileSprite: no celular ele some
+  // quando o app vai para segundo plano e o navegador libera a memória gráfica.)
+  tileRow(x, y, w, key, depth) {
+    const tw = this.textures.get(key).getSourceImage().width;
+    const tiles = [];
+    for (let tx = x; tx < x + w; tx += tw) {
+      const img = this.add.image(tx, y, key).setOrigin(0, 0).setDepth(depth);
+      if (tx + tw > x + w) img.setCrop(0, 0, x + w - tx, img.height);
+      tiles.push(img);
+    }
+    return tiles;
   }
 
   onGround(x) { return this.level.ground.some(([a, b]) => x > a + 30 && x < b - 30); }
@@ -181,7 +195,6 @@ class LevelScene extends Phaser.Scene {
   // ---------- Loop principal ----------
   update(time, delta) {
     this.now = time;
-    this.waters.forEach(w => { w.tilePositionX += delta * 0.03; });
     if (this.frozen || this.ended) return;
 
     this.updatePlayer(time, delta);
