@@ -9,7 +9,10 @@ const Save = {
       totalScore: 0,      // pontos acumulados ao concluir fases
       mapPieces: 0,       // pedaços do mapa do tesouro
       muted: false,
-      translate: false
+      translate: false,
+      wallet: 0,          // moedas guardadas para gastar na oficina
+      weapons: { owned: ['blaster'], equipped: 'blaster', power: { blaster: 1, triple: 1 }, tank: 1 },
+      review: []          // perguntas erradas que vão voltar para revisão
     };
   },
 
@@ -17,7 +20,9 @@ const Save = {
     try {
       const raw = localStorage.getItem(this.KEY);
       if (!raw) return this.defaults();
-      return Object.assign(this.defaults(), JSON.parse(raw));
+      const data = Object.assign(this.defaults(), JSON.parse(raw));
+      data.weapons = Object.assign(this.defaults().weapons, data.weapons);
+      return data;
     } catch (e) {
       return this.defaults();
     }
@@ -34,8 +39,9 @@ const Save = {
     return data;
   },
 
-  completeLevel(level, score) {
+  completeLevel(level, score, coins) {
     return this.update(d => {
+      d.wallet += coins || 0;
       const prevBest = d.best[level] || 0;
       if (score > prevBest) {
         d.totalScore += score - prevBest;

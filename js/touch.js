@@ -5,7 +5,8 @@ const Touch = {
   right: false,
   jump: false,
   shoot: false,
-  pressed: { jump: false, shoot: false },
+  switch: false,
+  pressed: { jump: false, shoot: false, switch: false },
   enabled: false,
 
   isTouchDevice() {
@@ -20,6 +21,7 @@ const Touch = {
     this.bindPad($('touch-pad'));
     this.bindButton($('touch-jump'), 'jump');
     this.bindButton($('touch-shoot'), 'shoot');
+    this.bindButton($('touch-switch'), 'switch');
   },
 
   enable() {
@@ -36,8 +38,8 @@ const Touch = {
   },
 
   reset() {
-    this.left = this.right = this.jump = this.shoot = false;
-    this.pressed.jump = this.pressed.shoot = false;
+    this.left = this.right = this.jump = this.shoot = this.switch = false;
+    this.pressed.jump = this.pressed.shoot = this.pressed.switch = false;
     document.querySelectorAll('.touch-btn, .pad-half').forEach(el => el.classList.remove('active'));
   },
 

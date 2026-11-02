@@ -24,7 +24,7 @@
     <div id="hud" class="hidden">
       <div class="hud-left">
         <span id="hud-lives" class="hud-box" title="Lives"></span>
-        <span class="hud-box" title="Energy shots">⚡ <b id="hud-ammo">0</b></span>
+        <span id="hud-weapon" class="hud-box" title="Weapon and energy (C = switch)"><span id="hud-weapon-icon">⚡</span> <b id="hud-ammo">0</b></span>
         <span class="hud-box" title="Coins">🪙 <b id="hud-coins">0</b></span>
         <span class="hud-box" title="Score">⭐ <b id="hud-score">0</b></span>
       </div>
@@ -56,6 +56,7 @@
         <div class="pad-half">▶</div>
       </div>
       <div class="touch-right">
+        <div id="touch-switch" class="touch-btn small hidden">🔄<small>WEAPON</small></div>
         <div id="touch-shoot" class="touch-btn">⚡<small>SHOOT</small></div>
         <div id="touch-jump" class="touch-btn big">⬆<small>JUMP</small></div>
       </div>
@@ -66,7 +67,10 @@
       <div class="card question-card">
         <div class="card-top">
           <h2 id="q-title"></h2>
-          <button class="translate-inline">🌐 Translate</button>
+          <div class="card-top-btns">
+            <button id="q-listen" class="translate-inline listen" title="Listen">🔊</button>
+            <button class="translate-inline">🌐 Translate</button>
+          </div>
         </div>
         <div id="q-text"></div>
         <div id="q-text-pt" class="pt"></div>
@@ -91,6 +95,7 @@
         <div class="menu-buttons">
           <button id="btn-play" class="big-btn">▶ Play</button>
           <button id="btn-continue" class="big-btn alt hidden">⟳ Continue</button>
+          <button id="btn-shop" class="big-btn small alt">🔧 Workshop</button>
           <button id="btn-help" class="big-btn small">❓ How to play</button>
           <button class="translate-inline big-btn small">🌐 Translate</button>
         </div>
@@ -107,12 +112,15 @@
           <tr><td><kbd>←</kbd> <kbd>→</kbd></td><td>Walk <span class="pt">Andar</span></td></tr>
           <tr><td><kbd>Space</kbd></td><td>Jump <span class="pt">Pular</span></td></tr>
           <tr><td><kbd>X</kbd></td><td>Shoot <span class="pt">Atirar</span></td></tr>
+          <tr><td><kbd>C</kbd></td><td>Switch weapon <span class="pt">Trocar de arma</span></td></tr>
           <tr><td><kbd>T</kbd></td><td>Translate <span class="pt">Traduzir</span></td></tr>
           <tr><td><kbd>P</kbd></td><td>Pause <span class="pt">Pausar</span></td></tr>
           <tr><td><kbd>1</kbd>-<kbd>4</kbd></td><td>Choose an answer <span class="pt">Escolher a resposta</span></td></tr>
         </table>
         <p class="touch-only">📱 On a phone or tablet: use ◀ ▶ to walk, ⬆ to jump and ⚡ to shoot. Tap the answers.</p>
         <p class="pt touch-only">📱 No celular ou tablet: use ◀ ▶ para andar, ⬆ para pular e ⚡ para atirar. Toque nas respostas.</p>
+        <p>Buy new weapons in the 🔧 Workshop with your coins.</p>
+        <p class="pt">Compre armas novas na 🔧 Oficina com suas moedas.</p>
         <p>Jump on enemies or shoot them. Open chests with math. Open doors with English words. Beat the boss by answering questions!</p>
         <p class="pt">Pule nos inimigos ou atire neles. Abra os baús com matemática. Abra as portas com palavras em inglês. Vença o chefão respondendo às perguntas!</p>
         <button id="btn-help-close" class="big-btn">OK</button>
@@ -150,9 +158,23 @@
         <p id="complete-next-pt" class="pt"></p>
         <div class="menu-buttons">
           <button id="btn-next" class="big-btn">▶ Next level</button>
+          <button id="btn-complete-shop" class="big-btn alt">🔧 Workshop</button>
           <button id="btn-again" class="big-btn alt">⟳ Play again</button>
           <button id="btn-complete-menu" class="big-btn alt">🏠 Menu</button>
         </div>
+      </div>
+    </div>
+
+    <div id="screen-shop" class="overlay screen hidden">
+      <div class="card shop-card">
+        <div class="card-top">
+          <h2>🔧 Bolt's Workshop</h2>
+          <span class="wallet">🪙 <b id="shop-wallet">0</b></span>
+        </div>
+        <p>Buy and upgrade weapons with your coins. Every purchase has a math question!</p>
+        <p class="pt">Compre e melhore armas com suas moedas. Toda compra tem uma conta!</p>
+        <div id="shop-items"></div>
+        <button id="btn-shop-close" class="big-btn">✔ Done</button>
       </div>
     </div>
 
@@ -183,7 +205,10 @@
   <script src="js/pictures.js"></script>
   <script src="js/questions.js"></script>
   <script src="js/levels.js"></script>
+  <script src="js/weapons.js"></script>
+  <script src="js/speech.js"></script>
   <script src="js/textures.js"></script>
+  <script src="js/backgrounds.js"></script>
   <script src="js/ui.js"></script>
   <script src="js/touch.js"></script>
   <script src="js/scenes/TitleScene.js"></script>

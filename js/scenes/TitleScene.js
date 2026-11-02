@@ -24,33 +24,3 @@ class TitleScene extends Phaser.Scene {
     this.time.addEvent({ delay: 200, loop: true, callback: () => crab.setTexture(crab.texture.key === 'crab1' ? 'crab2' : 'crab1') });
   }
 }
-
-// Fundo da praia (céu, sol, mar, ilhas, nuvens). Usado na tela inicial e na fase 1.
-function drawBeachBackground(scene, worldWidth) {
-  const sky = scene.add.graphics().setScrollFactor(0).setDepth(-100);
-  sky.fillGradientStyle(0x4fc3f7, 0x4fc3f7, 0xb3e5fc, 0xb3e5fc, 1);
-  sky.fillRect(0, 0, 960, 540);
-
-  const sun = scene.add.graphics().setScrollFactor(0).setDepth(-99);
-  sun.fillStyle(0xfff59d, 0.35); sun.fillCircle(820, 90, 62);
-  sun.fillStyle(0xffee58, 1); sun.fillCircle(820, 90, 42);
-
-  // ilhas distantes
-  for (let x = 100; x < worldWidth * 0.12 + 960; x += 520) {
-    scene.add.image(x, 345, 'island').setScrollFactor(0.12).setDepth(-97).setOrigin(0.5, 1);
-  }
-
-  // mar ao fundo
-  const sea = scene.add.graphics().setScrollFactor(0).setDepth(-96);
-  sea.fillGradientStyle(0x29b6f6, 0x29b6f6, 0x0277bd, 0x0277bd, 1);
-  sea.fillRect(0, 330, 960, 210);
-  sea.fillStyle(0xffffff, 0.35);
-  for (let i = 0; i < 18; i++) sea.fillRect((i * 137) % 960, 345 + (i * 53) % 110, 40 + (i % 3) * 20, 3);
-
-  // nuvens
-  for (let i = 0; i * 300 < worldWidth * 0.25 + 960; i++) {
-    const c = scene.add.image(i * 300 + (i % 2) * 80, 60 + (i % 3) * 45, 'cloud')
-      .setScrollFactor(0.25).setDepth(-95).setScale(0.8 + (i % 3) * 0.2);
-    scene.tweens.add({ targets: c, x: c.x + 40, duration: 4000 + i * 300, yoyo: true, repeat: -1, ease: 'Sine.easeInOut' });
-  }
-}

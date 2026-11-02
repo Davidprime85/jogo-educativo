@@ -169,6 +169,8 @@ const MathGen = {
 };
 
 function makeMathQuestion(level, boss = false) {
+  const due = Review.take('math');
+  if (due) return Object.assign({}, due.q, { options: shuffle(due.q.options), fromReview: true, reviewKey: due.key });
   const lv = Math.min(5, Math.max(1, boss ? level + 1 : level));
   const cfg = DIFFICULTY[lv];
   let q, tries = 0;
@@ -191,6 +193,8 @@ const ENGLISH_WORDS = {
 };
 
 function makeEnglishQuestion(level, word) {
+  const due = Review.take('english');
+  if (due && PICTURES[due.word]) word = due.word;
   word = word || pick(ENGLISH_WORDS[level] || ENGLISH_WORDS[1]);
   const nOptions = level <= 2 ? 3 : 4;
   const others = shuffle(Object.keys(PICTURES).filter(w => w !== word)).slice(0, nOptions - 1);
@@ -203,6 +207,9 @@ function makeEnglishQuestion(level, word) {
     picture: word,
     answer: word,
     options,
+    speakAfter: `This is a ${word}.`,
+    fromReview: !!(due && due.word === word),
+    reviewKey: 'w:' + word,
     explainFor(chosen) {
       const right = `A figura é <b>${word}</b> (${PICTURES[word].pt}).`;
       return chosen && chosen !== word
@@ -211,3 +218,103 @@ function makeEnglishQuestion(level, word) {
     }
   };
 }
+
+// ---------- Frases para completar (inglês, fase 2 em diante) ----------
+const WORD_PT = {
+  in: 'dentro de', on: 'em cima de', under: 'embaixo de',
+  two: 'dois', three: 'três', four: 'quatro', five: 'cinco', six: 'seis',
+  red: 'vermelho', blue: 'azul', green: 'verde'
+};
+
+const SENTENCES = [
+  { scene: 'cat_on_box', en: 'The cat is ___ the box.', answer: 'on', options: ['in', 'on', 'under'], full: 'The cat is on the box.', pt: 'O gato está em cima da caixa.' },
+  { scene: 'cat_in_box', en: 'The cat is ___ the box.', answer: 'in', options: ['in', 'on', 'under'], full: 'The cat is in the box.', pt: 'O gato está dentro da caixa.' },
+  { scene: 'cat_under_table', en: 'The cat is ___ the table.', answer: 'under', options: ['in', 'on', 'under'], full: 'The cat is under the table.', pt: 'O gato está embaixo da mesa.' },
+  { scene: 'apples_3', en: 'I see ___ apples.', answer: 'three', options: ['two', 'three', 'five'], full: 'I see three apples.', pt: 'Eu vejo três maçãs.' },
+  { scene: 'apples_4', en: 'I see ___ apples.', answer: 'four', options: ['three', 'four', 'six'], full: 'I see four apples.', pt: 'Eu vejo quatro maçãs.' },
+  { scene: 'ball_red', en: 'The ball is ___.', answer: 'red', options: ['red', 'blue', 'green'], full: 'The ball is red.', pt: 'A bola é vermelha.' },
+  { scene: 'ball_blue', en: 'The ball is ___.', answer: 'blue', options: ['red', 'blue', 'green'], full: 'The ball is blue.', pt: 'A bola é azul.' },
+  { scene: 'ball_green', en: 'The ball is ___.', answer: 'green', options: ['red', 'blue', 'green'], full: 'The ball is green.', pt: 'A bola é verde.' }
+];
+
+function makeSentenceQuestion() {
+  const s = pick(SENTENCES);
+  return {
+    kind: 'sentence',
+    text: s.en.replace('___', '<span class="blank">___</span>'),
+    textPt: 'Complete a frase em inglês olhando a figura.',
+    picture: s.scene,
+    answer: s.answer,
+    options: shuffle(s.options).map(w => ({ label: w, value: w })),
+    speakAfter: s.full,
+    explainFor(chosen) {
+      const base = `<b>${s.full}</b> = ${s.pt} ("${s.answer}" = ${WORD_PT[s.answer]})`;
+      return chosen && chosen !== s.answer ? `Você escolheu "${chosen}" (${WORD_PT[chosen]}). ${base}` : base;
+    }
+  };
+}
+
+// ---------- Conta da oficina (troco) ----------
+function makeShopQuestion(wallet, price) {
+  const r = wallet - price;
+  const tens = Math.floor(price / 10) * 10, units = price % 10;
+  let explain = `${wallet} − ${price} = ${r}.`;
+  if (tens && units) {
+    const mid = wallet - tens;
+    explain += ` Dica: primeiro tire as dezenas: ${wallet} − ${tens} = ${mid}. Depois tire as unidades: ${mid} − ${units} = ${r}.`;
+  } else {
+    explain += ` Confira somando: ${r} + ${price} = ${wallet}.`;
+  }
+  return {
+    kind: 'math',
+    key: `s${wallet}-${price}`,
+    text: `You have ${wallet} coins. It costs ${price}. How many coins will you have left?`,
+    textPt: `Você tem ${wallet} moedas. Custa ${price}. Com quantas moedas você vai ficar?`,
+    answer: r,
+    options: numericOptions(r, [r + 10, r - 10, r + 1, r - 1, price]),
+    explain
+  };
+}
+
+// ---------- Revisão: o que a criança errou volta depois ----------
+const Review = {
+  MAX: 20,
+
+  // guarda só dados simples (sem funções) para salvar no navegador
+  add(q) {
+    let item = null;
+    if (q.kind === 'math') {
+      const { key, text, textPt, answer, options, explain, visual } = q;
+      item = { kind: 'math', key, q: { key, text, textPt, answer, options, explain, visual, kind: 'math' } };
+    } else if (q.kind === 'english' && q.word) {
+      item = { kind: 'english', key: 'w:' + q.word, word: q.word };
+    }
+    if (!item || !item.key) return;
+    item.wait = 3; // volta depois de outras perguntas
+    Save.update(d => {
+      d.review = d.review.filter(r => r.key !== item.key);
+      d.review.push(item);
+      if (d.review.length > this.MAX) d.review.shift();
+    });
+  },
+
+  remove(key) { Save.update(d => { d.review = d.review.filter(r => r.key !== key); }); },
+
+  // pega uma pergunta de revisão "vencida" (e conta mais uma pergunta para as outras)
+  take(kind) {
+    let found = null;
+    Save.update(d => {
+      d.review.forEach(r => { r.wait--; });
+      found = d.review.find(r => r.kind === kind && r.wait <= 0) || null;
+      if (found) found.wait = 3;
+    });
+    return found;
+  },
+
+  record(q, correct) {
+    if (!correct) this.add(q);
+    else if (q.fromReview) this.remove(q.reviewKey);
+  },
+
+  count() { return Save.load().review.length; }
+};

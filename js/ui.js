@@ -14,6 +14,8 @@ const UI = {
     $('btn-translate').onclick = () => this.toggleTranslate();
     document.querySelectorAll('.translate-inline').forEach(b => b.onclick = () => this.toggleTranslate());
     $('btn-sound').onclick = () => this.toggleSound();
+    $('hud-weapon').onclick = () => { this.switchRequested = true; };
+    $('q-listen').onclick = () => { if (this.currentQ) Speech.say(this.currentQ.text); };
 
     window.addEventListener('keydown', e => {
       Sound.resume();
@@ -48,6 +50,7 @@ const UI = {
 
   toggleSound() {
     Sound.muted = !Sound.muted;
+    if (Sound.muted) Speech.stop();
     Save.update(d => { d.muted = Sound.muted; });
     this.updateSoundBtn();
   },
@@ -59,12 +62,18 @@ const UI = {
   hideScreens() { document.querySelectorAll('.screen').forEach(s => s.classList.add('hidden')); },
 
   // ---------- Placar ----------
-  updateHud(s) {
-    $('hud-lives').innerHTML = '❤'.repeat(Math.max(0, s.lives)) || '–';
+  updateHud(s, weaponIcon) {
+    $('hud-lives').innerHTML = s.lives > 5 ? `❤ ×${s.lives}` : ('❤'.repeat(Math.max(0, s.lives)) || '–');
+    if (weaponIcon) $('hud-weapon-icon').textContent = weaponIcon;
     $('hud-ammo').textContent = s.ammo;
     $('hud-coins').textContent = s.coins;
     $('hud-score').textContent = s.score;
   },
+  // troca de arma pelo placar (toque/clique no ícone da arma)
+  switchRequested: false,
+  consumeSwitch() { const v = this.switchRequested; this.switchRequested = false; return v; },
+  setSwitchVisible(on) { $('touch-switch').classList.toggle('hidden', !on); },
+
   setLevelName(level) {
     $('hud-level').innerHTML = `Level ${level.id}: ${level.name}<span class="pt">${level.namePt}</span>`;
   },
@@ -82,6 +91,7 @@ const UI = {
     $('dialog-who').textContent = who || '';
     $('dialog-en').textContent = en;
     $('dialog-pt').textContent = pt;
+    if (owner !== this.dialogOwner || owner === 'speech') Speech.say(en);
     this.dialogOwner = owner || null;
     this.show('dialog');
   },
@@ -97,7 +107,7 @@ const UI = {
     this.modalOpen = true;
     this.currentQ = q;
     const openedAt = performance.now();
-    $('q-title').innerHTML = opts.title;
+    $('q-title').innerHTML = opts.title + (q.fromReview ? ' <span class="review-tag">🔁 Review</span>' : '');
     $('q-text').innerHTML = q.text;
     $('q-text-pt').innerHTML = q.textPt;
     $('q-feedback').classList.add('hidden');
@@ -143,6 +153,7 @@ const UI = {
         $('q-result-pt').innerHTML = `Ops! A resposta certa é ${answerLabel}.`;
       }
       $('q-explain').innerHTML = q.explainFor ? q.explainFor(chosen) : (correct ? '' : q.explain);
+      Speech.say(q.speakAfter || (correct ? res.textContent : `The answer is ${answerLabel}.`));
       if (q.visual && q.visual.bars && (!correct || q.kind === 'math')) this.drawBars(q.visual.bars);
       $('q-feedback').classList.remove('hidden');
     };
@@ -164,6 +175,7 @@ const UI = {
       e.preventDefault();
     };
     this.show('modal');
+    Speech.say(q.text);
   },
 
   // Barrinhas de fração para ajudar a "ver" a conta

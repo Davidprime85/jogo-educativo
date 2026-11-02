@@ -65,6 +65,11 @@ const Sound = {
         [523, 523, 523, 659, 784, 659, 784, 1047].forEach((f, i) =>
           this.tone(f, 0.18, { delay: i * 0.13, type: 'triangle', vol: 0.17 }));
         break;
+      case 'hit':     this.tone(520, 0.08, { slide: 300, type: 'square', vol: 0.08 }); break;
+      case 'switch':  this.tone(600, 0.06, { type: 'triangle', vol: 0.1 }); this.tone(900, 0.08, { delay: 0.06, type: 'triangle', vol: 0.1 }); break;
+      case 'boing':   this.tone(180, 0.35, { slide: 720, type: 'sine', vol: 0.18 }); break;
+      case 'throw':   this.tone(400, 0.12, { slide: 250, type: 'triangle', vol: 0.08 }); break;
+      case 'buy':     [784, 988, 1175, 1568].forEach((f, i) => this.tone(f, 0.12, { delay: i * 0.07, type: 'square', vol: 0.07 })); break;
       case 'click':   this.tone(700, 0.05, { type: 'triangle', vol: 0.08 }); break;
     }
   }

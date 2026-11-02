@@ -13,6 +13,8 @@ const Textures = {
     this.enemies(scene);
     this.items(scene);
     this.world(scene);
+    this.weapons(scene);
+    this.forest(scene);
   },
 
   // ---------- Robô Bolt (48x56) ----------
@@ -282,5 +284,196 @@ const Textures = {
       g.fillStyle(0x90a4ae); g.fillEllipse(25, 18, 48, 26);
       g.fillStyle(0xb0bec5); g.fillEllipse(20, 12, 24, 10);
     });
+  },
+
+  // ---------- Tiros das armas ----------
+  weapons(scene) {
+    this.make(scene, 'bullet_tri', 16, 16, g => {
+      g.fillStyle(0xffab00, 0.4); g.fillCircle(8, 8, 8);
+      g.fillStyle(0xffd54f); g.fillCircle(8, 8, 5);
+      g.fillStyle(0xffffff); g.fillCircle(8, 8, 2.5);
+    });
+  },
+
+  // ---------- Fase 2: Floresta ----------
+  forest(scene) {
+    // chão de terra com grama (64x80)
+    this.make(scene, 'ground_forest', 64, 80, g => {
+      g.fillStyle(0x6d4c41); g.fillRect(0, 0, 64, 80);
+      g.fillStyle(0x5d4037);
+      [[10, 30], [34, 44], [54, 30], [20, 62], [46, 68], [60, 54]].forEach(([x, y]) => g.fillCircle(x, y, 4));
+      g.fillStyle(0x8d6e63); g.fillCircle(28, 26, 2); g.fillCircle(8, 50, 2);
+      g.fillStyle(0x2e7d32); g.fillRect(0, 10, 64, 6);
+      g.fillStyle(0x66bb6a); g.fillRect(0, 0, 64, 12);
+      g.fillStyle(0x81c784);
+      for (let x = 2; x < 64; x += 8) g.fillTriangle(x, 2, x + 3, -4, x + 6, 2);
+      g.fillStyle(0x4caf50); g.fillRect(0, 9, 64, 3);
+    });
+
+    // galho (plataforma fixa, 64x20)
+    this.make(scene, 'branch', 64, 20, g => {
+      g.fillStyle(0x6d4c41); g.fillRect(0, 2, 64, 18);
+      g.fillStyle(0x8d6e63); g.fillRect(0, 6, 64, 4);
+      g.fillStyle(0x7cb342); g.fillRect(0, 0, 64, 5);
+      g.fillStyle(0x558b2f); g.fillEllipse(14, 3, 14, 6); g.fillEllipse(46, 2, 12, 6);
+      g.fillStyle(0x4e342e); g.fillCircle(30, 14, 2);
+    });
+
+    // tronco que se move (128x24)
+    this.make(scene, 'log', 128, 24, g => {
+      g.fillStyle(0x795548); g.fillRoundedRect(0, 2, 128, 22, 10);
+      g.fillStyle(0x8d6e63); g.fillRect(8, 8, 112, 4);
+      g.fillStyle(0xd7ccc8); g.fillCircle(6, 13, 8); g.fillCircle(122, 13, 8);
+      g.fillStyle(0xa1887f); g.fillCircle(6, 13, 4); g.fillCircle(122, 13, 4);
+      g.fillStyle(0x7cb342); g.fillRoundedRect(14, 0, 100, 5, 2);
+    });
+
+    // pântano (64x60)
+    this.make(scene, 'swamp', 64, 60, g => {
+      g.fillStyle(0x33691e); g.fillRect(0, 8, 64, 52);
+      g.fillStyle(0x558b2f); g.fillRect(0, 8, 64, 7);
+      g.fillStyle(0x9ccc65);
+      g.fillCircle(12, 22, 3); g.fillCircle(40, 30, 2); g.fillCircle(52, 18, 2.5);
+      g.fillStyle(0x7cb342); g.fillEllipse(18, 9, 22, 6); g.fillEllipse(48, 9, 18, 6);
+    });
+
+    // cogumelo-trampolim (72x52)
+    this.make(scene, 'mushroom', 72, 52, g => {
+      g.fillStyle(0xfff3e0); g.fillRoundedRect(26, 28, 20, 24, 6);
+      g.fillStyle(0xffe0b2); g.fillRect(30, 34, 4, 14);
+      g.fillStyle(0xe53935);
+      g.slice(36, 32, 35, Math.PI, 0, false); g.fillPath();
+      g.fillStyle(0xc62828); g.fillRect(1, 29, 70, 4);
+      g.fillStyle(0xffffff);
+      g.fillCircle(20, 18, 5); g.fillCircle(40, 10, 6); g.fillCircle(55, 22, 4); g.fillCircle(30, 26, 3);
+    });
+
+    // árvores, arbustos e cogumelos (decoração)
+    this.make(scene, 'tree_big', 200, 330, g => {
+      g.fillStyle(0x5d4037);
+      g.fillRect(84, 130, 32, 200);
+      g.fillTriangle(60, 330, 84, 280, 84, 330); g.fillTriangle(140, 330, 116, 280, 116, 330);
+      g.fillStyle(0x4e342e); g.fillRect(96, 170, 4, 60); g.fillRect(104, 240, 4, 50);
+      g.fillStyle(0x2e7d32);
+      g.fillCircle(100, 90, 70); g.fillCircle(45, 120, 45); g.fillCircle(155, 120, 45);
+      g.fillStyle(0x388e3c); g.fillCircle(80, 70, 40); g.fillCircle(135, 85, 35);
+      g.fillStyle(0x43a047); g.fillCircle(70, 55, 18); g.fillCircle(120, 60, 15);
+    });
+    this.make(scene, 'tree_far', 160, 260, g => {
+      g.fillStyle(0xffffff);
+      g.fillRect(70, 110, 20, 150);
+      g.fillCircle(80, 80, 60); g.fillCircle(40, 110, 38); g.fillCircle(120, 110, 38);
+    });
+    this.make(scene, 'bush', 90, 46, g => {
+      g.fillStyle(0x2e7d32); g.fillCircle(24, 28, 20); g.fillCircle(66, 28, 20); g.fillCircle(45, 20, 22);
+      g.fillStyle(0x43a047); g.fillCircle(38, 16, 9); g.fillCircle(60, 20, 7);
+      g.fillStyle(0xe53935); g.fillCircle(30, 30, 3); g.fillCircle(56, 34, 3); g.fillCircle(46, 22, 3);
+    });
+    this.make(scene, 'shroom', 26, 22, g => {
+      g.fillStyle(0xfff3e0); g.fillRect(10, 10, 6, 12);
+      g.fillStyle(0xff7043); g.slice(13, 12, 12, Math.PI, 0, false); g.fillPath();
+      g.fillStyle(0xffffff); g.fillCircle(8, 7, 2); g.fillCircle(17, 5, 2);
+    });
+
+    // ----- vilões da floresta -----
+    // besouro (anda no chão)
+    const beetle = (g, phase) => {
+      g.fillStyle(0x263238);
+      for (let i = 0; i < 3; i++) {
+        const off = (i + phase) % 2 ? 2 : 0;
+        g.fillRect(8 + i * 10, 20 + off, 3, 7);
+      }
+      g.fillStyle(0xe53935); g.fillEllipse(22, 15, 34, 20);
+      g.fillStyle(0xff8a80); g.fillEllipse(18, 10, 14, 6);
+      g.fillStyle(0x212121); g.fillRect(21, 6, 2, 18);
+      g.fillCircle(14, 16, 3); g.fillCircle(30, 17, 3); g.fillCircle(25, 10, 2);
+      g.fillStyle(0x37474f); g.fillCircle(5, 16, 7);
+      g.fillStyle(0xffeb3b); g.fillCircle(3, 14, 2.2);
+      g.fillStyle(0x37474f); g.fillRect(0, 7, 2, 6);
+    };
+    this.make(scene, 'beetle1', 40, 28, g => beetle(g, 0));
+    this.make(scene, 'beetle2', 40, 28, g => beetle(g, 1));
+
+    // morcego
+    const bat = (g, up) => {
+      g.fillStyle(0x4a148c);
+      if (up) { g.fillTriangle(24, 16, 2, 2, 10, 20); g.fillTriangle(24, 16, 46, 2, 38, 20); }
+      else { g.fillTriangle(24, 14, 0, 24, 12, 10); g.fillTriangle(24, 14, 48, 24, 36, 10); }
+      g.fillStyle(0x6a1b9a); g.fillCircle(24, 16, 10);
+      g.fillTriangle(17, 9, 19, 1, 22, 8); g.fillTriangle(31, 9, 29, 1, 26, 8);
+      g.fillStyle(0xff1744); g.fillCircle(20, 15, 2.5); g.fillCircle(28, 15, 2.5);
+      g.fillStyle(0xffffff); g.fillTriangle(21, 21, 23, 21, 22, 24); g.fillTriangle(25, 21, 27, 21, 26, 24);
+    };
+    this.make(scene, 'bat1', 48, 30, g => bat(g, true));
+    this.make(scene, 'bat2', 48, 30, g => bat(g, false));
+
+    // aranha-robô
+    this.make(scene, 'spider', 44, 36, g => {
+      g.lineStyle(3, 0x212121, 1);
+      for (let i = 0; i < 4; i++) {
+        const y = 14 + i * 5;
+        g.lineBetween(22, 18, 4, y - 6); g.lineBetween(4, y - 6, 1, y + 6);
+        g.lineBetween(22, 18, 40, y - 6); g.lineBetween(40, y - 6, 43, y + 6);
+      }
+      g.fillStyle(0x424242); g.fillCircle(22, 18, 12);
+      g.fillStyle(0x7b1fa2); g.fillCircle(22, 14, 6);
+      g.fillStyle(0xffeb3b); g.fillCircle(18, 21, 2.5); g.fillCircle(26, 21, 2.5);
+      g.fillStyle(0xff1744); g.fillCircle(22, 25, 2);
+    });
+
+    // macaco-robô (joga cocos)
+    const monkey = (g, armUp) => {
+      g.fillStyle(0x6d4c41);
+      g.lineStyle(4, 0x6d4c41, 1);
+      g.beginPath(); g.arc(36, 36, 10, Math.PI * 0.2, Math.PI * 1.4, true); g.strokePath();
+      g.fillRoundedRect(12, 26, 20, 20, 8);
+      g.fillCircle(22, 16, 12);
+      g.fillStyle(0x90a4ae); g.fillCircle(9, 14, 5); g.fillCircle(35, 14, 5);
+      g.fillStyle(0xffcc80); g.fillEllipse(22, 19, 16, 12); g.fillEllipse(22, 34, 12, 10);
+      g.fillStyle(0x000000); g.fillCircle(18, 15, 2); g.fillCircle(26, 15, 2);
+      g.fillStyle(0x80deea); g.fillRect(15, 11, 14, 2);
+      g.fillStyle(0x6d4c41);
+      if (armUp) g.fillRoundedRect(28, 4, 7, 22, 3); else g.fillRoundedRect(29, 26, 7, 16, 3);
+      g.fillRoundedRect(8, 28, 7, 14, 3);
+      g.fillRoundedRect(14, 42, 7, 6, 2); g.fillRoundedRect(23, 42, 7, 6, 2);
+    };
+    this.make(scene, 'monkey1', 46, 48, g => monkey(g, false));
+    this.make(scene, 'monkey2', 46, 48, g => monkey(g, true));
+
+    this.make(scene, 'coconut', 20, 20, g => {
+      g.fillStyle(0x5d4037); g.fillCircle(10, 10, 9);
+      g.fillStyle(0x3e2723); g.fillCircle(7, 7, 1.6); g.fillCircle(12, 6, 1.6); g.fillCircle(9, 11, 1.6);
+      g.fillStyle(0x8d6e63); g.fillCircle(13, 13, 3);
+    });
+
+    this.make(scene, 'shockwave', 44, 28, g => {
+      g.fillStyle(0xff6f00, 0.5); g.fillEllipse(22, 20, 44, 18);
+      g.fillStyle(0xffca28); g.fillEllipse(22, 20, 32, 12);
+      g.fillStyle(0xfff8e1); g.fillEllipse(22, 20, 16, 6);
+      g.fillStyle(0xffca28); g.fillTriangle(10, 16, 14, 2, 18, 16); g.fillTriangle(26, 16, 30, 4, 34, 16);
+    });
+
+    // Chefão: Robo-Gorila (150x140)
+    const gorilla = (g, step) => {
+      const a = step ? -6 : 0;
+      g.fillStyle(0x37474f);
+      g.fillRoundedRect(42, 108, 26, 30, 8); g.fillRoundedRect(82, 108, 26, 30, 8);
+      g.fillStyle(0x455a64);
+      g.fillRoundedRect(4, 50 + a, 30, 78, 14); g.fillRoundedRect(116, 50 - a, 30, 78, 14);
+      g.fillStyle(0x90a4ae); g.fillCircle(19, 126 + a, 15); g.fillCircle(131, 126 - a, 15);
+      g.fillStyle(0x546e7a); g.fillRoundedRect(22, 40, 106, 80, 30);
+      g.fillStyle(0x90a4ae); g.fillRoundedRect(46, 62, 58, 40, 12);
+      g.fillStyle(0xff1744); g.fillCircle(75, 82, 8);
+      g.fillStyle(0xffcdd2); g.fillCircle(73, 80, 3);
+      g.fillStyle(0x37474f); g.fillRoundedRect(45, 4, 60, 48, 18);
+      g.fillStyle(0xb0bec5); g.fillRoundedRect(52, 20, 46, 28, 12);
+      g.fillStyle(0xff1744); g.fillRect(58, 26, 12, 6); g.fillRect(80, 26, 12, 6);
+      g.fillStyle(0x263238);
+      g.fillTriangle(56, 18, 72, 24, 56, 24); g.fillTriangle(94, 18, 78, 24, 94, 24);
+      g.fillRect(62, 39, 26, 3); g.fillRect(62, 43, 26, 2);
+      g.fillStyle(0xffd600); g.fillRect(73, 0, 4, 8); g.fillCircle(75, 2, 4);
+    };
+    this.make(scene, 'gorilla1', 150, 140, g => gorilla(g, false));
+    this.make(scene, 'gorilla2', 150, 140, g => gorilla(g, true));
   }
 };

@@ -6,6 +6,7 @@ const Game = {
   start() {
     UI.init();
     Touch.init();
+    Speech.init();
     this.phaser = new Phaser.Game({
       type: Phaser.AUTO,
       parent: 'game',
@@ -35,6 +36,9 @@ const Game = {
     click('btn-complete-menu', () => this.showTitle());
     click('btn-victory-menu', () => this.showTitle());
     click('btn-next', () => this.playLevel(this.currentLevel + 1));
+    click('btn-shop', () => this.openShop());
+    click('btn-complete-shop', () => this.openShop());
+    click('btn-shop-close', () => { UI.hide('screen-shop'); if (!$('screen-title').classList.contains('hidden')) this.showTitle(); });
 
     // trocou de app ou de aba no celular: pausa o jogo
     document.addEventListener('visibilitychange', () => {
@@ -44,7 +48,9 @@ const Game = {
     window.addEventListener('keydown', e => {
       if ((e.code === 'KeyP' || e.code === 'Escape') && !UI.modalOpen) this.togglePause();
       // Enter no menu inicial começa o jogo
-      if (e.code === 'Enter' && !$('screen-title').classList.contains('hidden') && $('screen-help').classList.contains('hidden')) {
+      const titleOnly = !$('screen-title').classList.contains('hidden') && $('screen-help').classList.contains('hidden')
+        && $('screen-shop').classList.contains('hidden') && !UI.modalOpen;
+      if (e.code === 'Enter' && titleOnly) {
         const save = Save.load();
         this.playLevel(save.unlocked > 1 && LEVELS[save.unlocked - 1].ready ? save.unlocked : 1);
       }
@@ -75,7 +81,7 @@ const Game = {
       b.onclick = () => { Sound.resume(); Sound.play('click'); this.playLevel(+b.dataset.level); };
     });
     $('title-save').textContent = save.totalScore > 0
-      ? `Saved progress: ${save.totalScore} points · Map pieces: ${save.mapPieces}/5`
+      ? `Saved progress: ${save.totalScore} points · Map pieces: ${save.mapPieces}/5 · 🪙 ${save.wallet}`
       : '';
     UI.show('screen-title');
   },
@@ -108,6 +114,64 @@ const Game = {
     }
   },
 
+  // ---------- Oficina ----------
+  shopRetry: {},
+
+  openShop() {
+    this.renderShop();
+    UI.show('screen-shop');
+  },
+
+  renderShop() {
+    const save = Save.load();
+    $('shop-wallet').textContent = save.wallet;
+    const box = $('shop-items');
+    box.innerHTML = '';
+    SHOP_ITEMS.filter(it => !it.soon || it.unlock <= save.unlocked + 1).forEach(it => {
+      const locked = it.unlock > save.unlocked;
+      const lvl = it.soon || locked ? 0 : it.level(save);
+      const next = locked ? null : shopNextLevel(it, save);
+      const price = next ? it.prices[next] : 0;
+      let action;
+      if (it.soon || locked) action = `<span class="shop-lock">🔒 Island ${it.unlock}</span>`;
+      else if (!next) action = `<span class="shop-max">MAX ✔</span>`;
+      else if (save.wallet < price) action = `<button class="shop-buy" disabled>🪙 ${price}</button><small class="shop-need">Need ${price - save.wallet} more</small>`;
+      else action = `<button class="shop-buy">${lvl === 0 ? 'Buy' : 'Upgrade'} 🪙 ${price}</button>`;
+      const stars = it.soon || locked ? '' : [1, 2, 3].map(n => n <= lvl ? '★' : '☆').join('');
+      const card = document.createElement('div');
+      card.className = 'shop-item' + (it.soon || locked ? ' locked' : '');
+      card.innerHTML = `
+        <div class="shop-icon">${it.icon}</div>
+        <div class="shop-info">
+          <b>${it.name}</b> <span class="shop-stars">${stars}</span>
+          <span class="pt">${it.namePt}</span>
+          <small>${it.desc || 'Coming soon!'}</small>
+          <small class="pt">${it.descPt || 'Em breve!'}</small>
+        </div>
+        <div class="shop-action">${action}</div>`;
+      const btn = card.querySelector('.shop-buy:not([disabled])');
+      if (btn) btn.onclick = () => { Sound.play('click'); this.buy(it, price); };
+      box.appendChild(card);
+    });
+  },
+
+  // toda compra pede uma conta: primeiro o troco; se errar, outra conta da fase
+  buy(item, price) {
+    const save = Save.load();
+    const q = this.shopRetry[item.id] ? makeMathQuestion(save.unlocked) : makeShopQuestion(save.wallet, price);
+    UI.ask(q, { title: '🔧 Workshop', rewardText: `You got: ${item.name}!`, rewardTextPt: `Você ganhou: ${item.namePt}!` }, correct => {
+      Review.record(q, correct);
+      if (correct) {
+        Save.update(d => { d.wallet -= price; item.apply(d); });
+        delete this.shopRetry[item.id];
+        Sound.play('buy');
+      } else {
+        this.shopRetry[item.id] = true;
+      }
+      this.renderShop();
+    });
+  },
+
   showGameOver() {
     UI.show('screen-gameover');
   },
@@ -117,7 +181,7 @@ const Game = {
     $('complete-stats').innerHTML = `
       <p>⭐ Score: <b>${state.score}</b> &nbsp; 🪙 Coins: <b>${state.coins}</b></p>
       <p>🧠 Questions: <b>${state.right}</b> right of <b>${state.asked}</b></p>
-      <p>🗺️ Map pieces: <b>${save.mapPieces}/5</b></p>`;
+      <p>🗺️ Map pieces: <b>${save.mapPieces}/5</b> &nbsp; 🔧 Workshop coins: <b>${save.wallet}</b></p>`;
     if (!next) {
       this.showVictory(state, save);
       return;

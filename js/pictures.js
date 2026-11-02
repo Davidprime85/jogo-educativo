@@ -165,11 +165,55 @@ function starShape(c, cx, cy, outer, inner, points) {
   c.closePath(); c.fill();
 }
 
+// ---------- Cenas para as frases (fase 2 em diante) ----------
+function catAt(c, x, y, s) {
+  c.save();
+  c.translate(x, y); c.scale(s, s); c.translate(-110, -85);
+  PICTURES.cat.draw(c);
+  c.restore();
+}
+function box(c, x, y, w, h) {
+  c.fillStyle = '#c8a26b'; c.fillRect(x, y, w, h);
+  c.fillStyle = '#a1764a'; c.fillRect(x, y, w, 8);
+  c.strokeStyle = '#8d6e63'; c.lineWidth = 2; c.strokeRect(x, y, w, h);
+}
+function apples(c, n) {
+  grass(c);
+  const gap = 200 / n;
+  for (let i = 0; i < n; i++) {
+    const x = 10 + gap * (i + 0.5), y = 95;
+    c.fillStyle = '#e53935'; circle(c, x - 8, y, 18); circle(c, x + 8, y, 18);
+    c.fillStyle = '#6d4c41'; c.fillRect(x - 2, y - 30, 4, 14);
+    c.fillStyle = '#43a047'; c.beginPath(); c.ellipse(x + 9, y - 26, 9, 4, -0.5, 0, Math.PI * 2); c.fill();
+  }
+}
+function ballColor(c, color) {
+  grass(c);
+  c.fillStyle = color; circle(c, 110, 85, 48);
+  c.fillStyle = 'rgba(255,255,255,.45)'; circle(c, 92, 66, 12);
+}
+
+const SCENES = {
+  cat_on_box: c => { grass(c); box(c, 60, 92, 100, 52); catAt(c, 110, 71, 0.42); },
+  cat_in_box: c => { grass(c); catAt(c, 110, 88, 0.42); box(c, 60, 92, 100, 52); },
+  cat_under_table: c => {
+    grass(c);
+    c.fillStyle = '#795548'; c.fillRect(30, 46, 160, 12); c.fillRect(40, 58, 10, 84); c.fillRect(170, 58, 10, 84);
+    catAt(c, 110, 112, 0.38);
+  },
+  apples_3: c => apples(c, 3),
+  apples_4: c => apples(c, 4),
+  ball_red: c => ballColor(c, '#e53935'),
+  ball_blue: c => ballColor(c, '#1e88e5'),
+  ball_green: c => ballColor(c, '#43a047')
+};
+
 function drawPicture(canvas, word) {
   const c = canvas.getContext('2d');
   c.clearRect(0, 0, canvas.width, canvas.height);
   c.save();
   c.scale(canvas.width / 220, canvas.height / 160);
-  PICTURES[word].draw(c);
+  if (SCENES[word]) SCENES[word](c);
+  else PICTURES[word].draw(c);
   c.restore();
 }

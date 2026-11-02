@@ -2,13 +2,23 @@
 const SPEED = 260;
 const JUMP = 640;
 const MAX_LIVES = 5;
+const MUSHROOM_JUMP = 900;
+
+// Configuração de cada chefão: textura, corpo físico, velocidade e ataques
+const BOSS_TYPES = {
+  kingCrab: { tex: 'kingcrab', size: [120, 72], offset: [15, 56], speed: 70, attacks: ['jump', 'bubbles'] },
+  gorilla:  { tex: 'gorilla',  size: [110, 112], offset: [20, 26], speed: 80, attacks: ['pound', 'throw', 'charge'] }
+};
 
 class LevelScene extends Phaser.Scene {
   constructor() { super('Level'); }
 
   init(data) {
     this.level = LEVELS[data.level - 1];
-    this.state = { lives: 3, ammo: 10, coins: 0, score: 0, right: 0, asked: 0 };
+    this.save = Save.load();
+    this.weapon = this.save.weapons.equipped;
+    if (!this.save.weapons.owned.includes(this.weapon)) this.weapon = 'blaster';
+    this.state = { lives: 3, ammo: startingAmmo(this.save), coins: 0, score: 0, right: 0, asked: 0 };
     this.frozen = false;
     this.ended = false;
     this.now = 0;
@@ -19,19 +29,21 @@ class LevelScene extends Phaser.Scene {
     this.nextShot = 0;
     this.invulnUntil = 0;
     this.respawnX = this.level.startX;
+    this.boss = null;
     this.bossStarted = false;
     this.speechUntil = 0;
   }
 
   create() {
     const L = this.level;
+    this.theme = THEMES[L.theme];
     Textures.createAll(this);
     this.createAnims();
 
     this.physics.world.setBounds(0, 0, L.width, 700);
     this.physics.world.setBoundsCollision(true, true, true, false);
 
-    drawBeachBackground(this, L.width);
+    this.theme.background(this, L.width);
     this.buildWorld();
     this.createPlayer();
     this.createEnemies();
@@ -45,70 +57,87 @@ class LevelScene extends Phaser.Scene {
 
     this.keys = this.input.keyboard.addKeys({
       left: 'LEFT', right: 'RIGHT', up: 'UP', down: 'DOWN',
-      jump: 'SPACE', shoot: 'X', a: 'A', d: 'D', w: 'W'
+      jump: 'SPACE', shoot: 'X', swap: 'C', a: 'A', d: 'D', w: 'W'
     });
 
     UI.setLevelName(L);
     UI.show('hud');
     UI.show('touch-controls');
+    UI.setSwitchVisible(this.save.weapons.owned.length > 1);
     Touch.reset();
     UI.bossBar(null);
     this.refreshHud();
     this.time.delayedCall(500, () => this.speech('Bolt', L.intro.en, L.intro.pt, 4500));
 
-    this.events.once('shutdown', () => { UI.hideDialog(); UI.bossBar(null); UI.hide('touch-controls'); });
+    this.events.once('shutdown', () => { UI.hideDialog(); UI.bossBar(null); UI.hide('touch-controls'); Speech.stop(); });
   }
 
   createAnims() {
     if (this.anims.exists('walk')) return;
+    const pair = (key, a, b, rate) => this.anims.create({ key, frames: [{ key: a }, { key: b }], frameRate: rate, repeat: -1 });
     this.anims.create({ key: 'walk', frames: [{ key: 'robot_walk1' }, { key: 'robot_idle' }, { key: 'robot_walk2' }, { key: 'robot_idle' }], frameRate: 12, repeat: -1 });
-    this.anims.create({ key: 'crabwalk', frames: [{ key: 'crab1' }, { key: 'crab2' }], frameRate: 6, repeat: -1 });
-    this.anims.create({ key: 'kingwalk', frames: [{ key: 'kingcrab1' }, { key: 'kingcrab2' }], frameRate: 5, repeat: -1 });
+    pair('crabwalk', 'crab1', 'crab2', 6);
+    pair('beetlewalk', 'beetle1', 'beetle2', 7);
+    pair('batfly', 'bat1', 'bat2', 8);
+    pair('kingcrabwalk', 'kingcrab1', 'kingcrab2', 5);
+    pair('gorillawalk', 'gorilla1', 'gorilla2', 4);
   }
 
   // ---------- Montagem do mundo ----------
   buildWorld() {
-    const L = this.level;
+    const L = this.level, T = this.theme;
     this.solids = this.physics.add.staticGroup();
     this.oneWay = this.physics.add.staticGroup();
 
-    // água nos buracos (balança de leve)
+    // água/pântano nos buracos (balança de leve)
     for (let i = 0; i < L.ground.length - 1; i++) {
       const x0 = L.ground[i][1], x1 = L.ground[i + 1][0];
-      const tiles = this.tileRow(x0 - 30, GROUND_Y + 24, x1 - x0 + 60, 'water', 2);
+      const tiles = this.tileRow(x0 - 30, GROUND_Y + 24, x1 - x0 + 60, T.water, 2);
       this.tweens.add({ targets: tiles, x: '+=12', duration: 1400, yoyo: true, repeat: -1, ease: 'Sine.easeInOut' });
     }
 
     L.ground.forEach(([x0, x1]) => {
-      this.tileRow(x0, GROUND_Y, x1 - x0, 'ground_beach', 1);
+      this.tileRow(x0, GROUND_Y, x1 - x0, T.ground, 1);
       this.solids.add(this.add.zone(x0, GROUND_Y, x1 - x0, 80).setOrigin(0, 0));
     });
 
     L.platforms.forEach(([x, y, w]) => {
-      this.tileRow(x, y, w, 'plank', 1);
+      this.tileRow(x, y, w, T.platform, 1);
       const p = this.add.zone(x, y, w, 20).setOrigin(0, 0);
       this.oneWay.add(p);
-      p.body.checkCollision.down = false;
-      p.body.checkCollision.left = false;
-      p.body.checkCollision.right = false;
+      this.makeOneWay(p.body);
     });
 
-    // decoração: coqueiros, conchas e pedras
-    for (let x = 140; x < L.width; x += 430 + (x % 3) * 60) {
-      if (this.onGround(x)) this.add.image(x, GROUND_Y + 6, 'palm').setOrigin(0.5, 1).setDepth(-5).setFlipX(x % 2 === 0);
-    }
-    for (let x = 90; x < L.width; x += 170 + (x % 7) * 20) {
-      if (this.onGround(x)) this.add.image(x, GROUND_Y + 2, x % 3 ? 'shell' : 'rock').setOrigin(0.5, 1).setDepth(0);
-    }
+    // troncos que se movem
+    this.movers = this.physics.add.group({ allowGravity: false, immovable: true });
+    (L.movers || []).forEach(m => {
+      const log = this.movers.create(m.x + 64, m.y + 12, 'log').setDepth(2);
+      this.makeOneWay(log.body);
+      const start = m.axis === 'x' ? log.x : log.y;
+      const end = m.axis === 'x' ? start + m.range : start - m.range;
+      log.setData({ axis: m.axis, min: Math.min(start, end), max: Math.max(start, end), speed: m.speed });
+      if (m.axis === 'x') log.setVelocityX(m.speed); else log.setVelocityY(-m.speed);
+    });
 
-    // placas
+    // cogumelos-trampolim
+    this.mushrooms = this.physics.add.staticGroup();
+    (L.mushrooms || []).forEach(x => this.mushrooms.create(x, GROUND_Y - 26, 'mushroom').setDepth(3));
+
+    T.decorate(this, L);
+
     this.signs = L.signs.map(s => {
       const img = this.add.image(s.x, GROUND_Y, 'sign').setOrigin(0.5, 1).setDepth(0);
       return Object.assign({ img }, s);
     });
 
-    // checkpoints
     this.flags = L.checkpoints.map(x => ({ x, img: this.add.image(x, GROUND_Y, 'flag_off').setOrigin(0.15, 1).setDepth(0), on: false }));
+  }
+
+  // plataforma "atravessável": dá para subir por baixo
+  makeOneWay(body) {
+    body.checkCollision.down = false;
+    body.checkCollision.left = false;
+    body.checkCollision.right = false;
   }
 
   // Repete uma imagem lado a lado. (Não usamos TileSprite: no celular ele some
@@ -130,7 +159,7 @@ class LevelScene extends Phaser.Scene {
     this.player = this.physics.add.sprite(this.level.startX, GROUND_Y - 40, 'robot_idle').setDepth(10);
     this.player.body.setSize(26, 44).setOffset(11, 11);
     this.player.setCollideWorldBounds(true);
-    this.player.body.setMaxVelocityY(900);
+    this.player.body.setMaxVelocityY(950);
 
     this.bullets = this.physics.add.group({ allowGravity: false });
     this.particles = this.add.particles(0, 0, 'spark', {
@@ -139,14 +168,40 @@ class LevelScene extends Phaser.Scene {
     }).setDepth(20);
   }
 
+  // ---------- Inimigos ----------
   createEnemies() {
     this.enemies = this.physics.add.group();
+    this.hazards = this.physics.add.group({ allowGravity: false }); // cocos, bolhas, ondas de choque
+    this.threads = this.add.graphics().setDepth(4);                 // fios das aranhas
+
     this.level.enemies.forEach(e => {
-      const c = this.enemies.create(e.x, GROUND_Y - 20, 'crab1');
-      c.body.setSize(34, 22).setOffset(5, 11);
-      c.setData({ min: e.min, max: e.max, dir: Math.random() < 0.5 ? -1 : 1, speed: 55 + Math.random() * 25 });
-      c.play('crabwalk');
-      c.setDepth(5);
+      const type = e.type || 'crab';
+      let s;
+      if (type === 'crab' || type === 'beetle') {
+        s = this.enemies.create(e.x, GROUND_Y - 20, type + '1');
+        if (type === 'crab') s.body.setSize(34, 22).setOffset(5, 11);
+        else s.body.setSize(34, 20).setOffset(3, 7);
+        s.setData({ min: e.min, max: e.max, dir: Math.random() < 0.5 ? -1 : 1, speed: 55 + Math.random() * 25 });
+        s.play(type + 'walk');
+      } else if (type === 'bat') {
+        s = this.enemies.create(e.x, e.y, 'bat1');
+        s.body.setAllowGravity(false);
+        s.body.setSize(30, 18).setOffset(9, 6);
+        s.setData({ flying: true, min: e.min, max: e.max, baseY: e.y, dir: -1, speed: 90, phase: Math.random() * 6 });
+        s.play('batfly');
+      } else if (type === 'spider') {
+        s = this.enemies.create(e.x, e.top, 'spider');
+        s.body.setAllowGravity(false);
+        s.body.setSize(26, 22).setOffset(9, 7);
+        s.setData({ flying: true, top: e.top, bottom: GROUND_Y - 24, phase: Math.random() * 6 });
+      } else if (type === 'monkey') {
+        s = this.enemies.create(e.x, GROUND_Y - 24, 'monkey1');
+        s.body.setSize(28, 40).setOffset(9, 8);
+        s.setData({ nextThrow: 1500 + Math.random() * 1000 });
+      }
+      s.setData('type', type);
+      s.setData('hp', ENEMY_HP[type] || 1);
+      s.setDepth(5);
     });
   }
 
@@ -169,27 +224,39 @@ class LevelScene extends Phaser.Scene {
     this.doors = this.physics.add.staticGroup();
     L.doors.forEach(d => {
       const door = this.doors.create(d.x, GROUND_Y - 65, 'door').setDepth(3);
-      door.setData({ word: d.word, wait: 0 });
+      door.setData({ word: d.word, sentence: !!d.sentence, wait: 0 });
       this.tweens.add({ targets: door, alpha: 0.85, duration: 700, yoyo: true, repeat: -1 });
     });
   }
 
   createColliders() {
     const P = this.player;
+    const walker = e => !e.getData('flying');
     this.physics.add.collider(P, this.solids);
     this.physics.add.collider(P, this.oneWay);
-    this.physics.add.collider(this.enemies, this.solids);
-    this.physics.add.collider(this.enemies, this.oneWay);
+    this.physics.add.collider(P, this.movers);
+    this.physics.add.collider(P, this.mushrooms, (p, m) => this.bounceMushroom(m));
+    this.physics.add.collider(this.enemies, this.solids, null, walker);
+    this.physics.add.collider(this.enemies, this.oneWay, null, walker);
+    this.physics.add.collider(this.enemies, this.mushrooms, null, walker);
     this.physics.add.collider(P, this.doors, (p, door) => this.touchDoor(door));
-    this.physics.add.collider(this.enemies, this.doors);
+    this.physics.add.collider(this.enemies, this.doors, null, walker);
 
     this.physics.add.overlap(P, this.coins, (p, coin) => this.collectCoin(coin));
     this.physics.add.overlap(P, this.chests, (p, chest) => this.touchChest(chest));
     this.physics.add.overlap(P, this.enemies, (p, enemy) => this.touchEnemy(enemy));
 
-    this.physics.add.overlap(this.bullets, this.enemies, (b, enemy) => { b.destroy(); this.killEnemy(enemy); });
+    this.physics.add.overlap(this.bullets, this.enemies, (b, enemy) => this.bulletHitsEnemy(b, enemy));
     this.physics.add.collider(this.bullets, this.solids, b => b.destroy());
     this.physics.add.collider(this.bullets, this.doors, b => b.destroy());
+
+    // perigos: cocos quebram no chão; bolhas e ondas de choque atravessam
+    this.physics.add.collider(this.hazards, this.solids, h => this.popHazard(h), h => h.getData('breaks'));
+    this.physics.add.overlap(P, this.hazards, (p, h) => { if (!h.active) return; this.popHazard(h); this.hurt(h.x); });
+    this.physics.add.overlap(this.bullets, this.hazards, (b, h) => {
+      if (!h.active) return;
+      b.destroy(); this.popHazard(h); this.addScore(10, h.x, h.y);
+    });
   }
 
   // ---------- Loop principal ----------
@@ -198,7 +265,8 @@ class LevelScene extends Phaser.Scene {
     if (this.frozen || this.ended) return;
 
     this.updatePlayer(time, delta);
-    this.updateEnemies();
+    this.updateEnemies(time);
+    this.updateMovers();
     this.updateBullets();
     this.updateSigns();
     this.updateCheckpoints();
@@ -219,7 +287,8 @@ class LevelScene extends Phaser.Scene {
     p.setVelocityX(body.velocity.x + (dir * SPEED - body.velocity.x) * f);
 
     // pulo com "coyote time" e buffer: fica mais fácil acertar o pulo
-    const jumpPressed = Phaser.Input.Keyboard.JustDown(k.jump) || Phaser.Input.Keyboard.JustDown(k.up) || Phaser.Input.Keyboard.JustDown(k.w) || Touch.consume('jump');
+    const JD = Phaser.Input.Keyboard.JustDown;
+    const jumpPressed = JD(k.jump) || JD(k.up) || JD(k.w) || Touch.consume('jump');
     const jumpDown = k.jump.isDown || k.up.isDown || k.w.isDown || Touch.jump;
     if (jumpPressed) this.jumpBuffer = time;
     if (this.jumpBuffer && time - this.jumpBuffer < 130 && time - this.lastGround < 110) {
@@ -241,26 +310,49 @@ class LevelScene extends Phaser.Scene {
     else if (Math.abs(body.velocity.x) > 40) { if (!p.anims.isPlaying) p.play('walk'); }
     else { p.anims.stop(); p.setTexture('robot_idle'); }
 
-    if (Phaser.Input.Keyboard.JustDown(k.shoot) || Touch.consume('shoot')) this.shoot();
+    if (JD(k.shoot) || Touch.consume('shoot')) this.shoot();
+    if (JD(k.swap) || Touch.consume('switch') || UI.consumeSwitch()) this.switchWeapon();
 
-    // caiu na água
     if (p.y > 600) this.fallInWater();
   }
 
+  // ---------- Armas ----------
   shoot() {
     if (this.now < this.nextShot) return;
-    if (this.state.ammo <= 0) {
+    const W = WEAPONS[this.weapon];
+    const stats = W.levels[this.save.weapons.power[this.weapon] - 1];
+    if (this.state.ammo < W.ammo) {
       Sound.play('wrong');
       this.speech('Bolt', 'No energy! Open a chest to get more.', 'Sem energia! Abra um baú para ganhar mais.', 2500);
       this.nextShot = this.now + 600;
       return;
     }
-    this.state.ammo--;
-    this.nextShot = this.now + 250;
-    const b = this.bullets.create(this.player.x + this.facing * 22, this.player.y + 6, 'bullet').setDepth(9);
-    b.setVelocityX(this.facing * 560);
-    b.setData('born', this.now);
+    this.state.ammo -= W.ammo;
+    this.nextShot = this.now + W.cooldown;
+    W.angles.forEach(deg => {
+      const a = Phaser.Math.DegToRad(deg);
+      const b = this.bullets.create(this.player.x + this.facing * 22, this.player.y + 6, W.texture).setDepth(9).setScale(stats.scale);
+      b.setVelocity(Math.cos(a) * stats.speed * this.facing, Math.sin(a) * stats.speed);
+      b.setData({ born: this.now, dmg: stats.dmg, pierce: stats.pierce, hit: new Set() });
+    });
     Sound.play('shoot');
+    this.refreshHud();
+  }
+
+  switchWeapon() {
+    const owned = this.save.weapons.owned;
+    if (owned.length < 2) {
+      this.speech('Bolt', 'I only have the Blaster. I can buy more weapons in the Workshop!', 'Eu só tenho o Blaster. Posso comprar mais armas na Oficina!', 3000);
+      return;
+    }
+    this.weapon = owned[(owned.indexOf(this.weapon) + 1) % owned.length];
+    Save.update(d => { d.weapons.equipped = this.weapon; });
+    Sound.play('switch');
+    const W = WEAPONS[this.weapon];
+    const t = this.add.text(this.player.x, this.player.y - 50, `${W.icon} ${W.name}`, {
+      fontFamily: 'Fredoka, Arial', fontSize: '18px', fontStyle: 'bold', color: '#fff', stroke: '#000', strokeThickness: 4
+    }).setOrigin(0.5).setDepth(30);
+    this.tweens.add({ targets: t, y: t.y - 30, alpha: 0, duration: 1000, onComplete: () => t.destroy() });
     this.refreshHud();
   }
 
@@ -270,16 +362,112 @@ class LevelScene extends Phaser.Scene {
     });
   }
 
-  updateEnemies() {
+  bulletHitsEnemy(b, enemy) {
+    if (!b.active || enemy.getData('dead') || b.getData('hit').has(enemy)) return;
+    b.getData('hit').add(enemy);
+    this.damageEnemy(enemy, b.getData('dmg'));
+    if (b.getData('pierce') > 0) b.setData('pierce', b.getData('pierce') - 1);
+    else b.destroy();
+  }
+
+  damageEnemy(enemy, dmg) {
+    const hp = enemy.getData('hp') - dmg;
+    enemy.setData('hp', hp);
+    if (hp <= 0) { this.killEnemy(enemy); return; }
+    Sound.play('hit');
+    enemy.setTintFill(0xffffff);
+    this.time.delayedCall(90, () => enemy.active && enemy.clearTint());
+  }
+
+  // ---------- Inimigos: comportamento ----------
+  updateEnemies(time) {
+    this.threads.clear();
     this.enemies.getChildren().forEach(e => {
       if (!e.active || e.getData('dead')) return;
-      let d = e.getData('dir');
-      if (e.x < e.getData('min') || e.body.blocked.left) d = 1;
-      if (e.x > e.getData('max') || e.body.blocked.right) d = -1;
-      e.setData('dir', d);
-      e.setVelocityX(d * e.getData('speed'));
+      const type = e.getData('type');
+      if (type === 'crab' || type === 'beetle') {
+        let d = e.getData('dir');
+        if (e.x < e.getData('min') || e.body.blocked.left) d = 1;
+        if (e.x > e.getData('max') || e.body.blocked.right) d = -1;
+        e.setData('dir', d);
+        e.setVelocityX(d * e.getData('speed'));
+        if (type === 'beetle') e.setFlipX(d > 0);
+      } else if (type === 'bat') {
+        let d = e.getData('dir');
+        if (e.x < e.getData('min')) d = 1;
+        if (e.x > e.getData('max')) d = -1;
+        e.setData('dir', d);
+        e.setVelocityX(d * e.getData('speed'));
+        e.y = e.getData('baseY') + Math.sin(time / 380 + e.getData('phase')) * 45;
+      } else if (type === 'spider') {
+        const top = e.getData('top'), bottom = e.getData('bottom');
+        const k = 0.5 - 0.5 * Math.cos(time / 900 + e.getData('phase'));
+        e.y = top + (bottom - top) * k;
+        this.threads.lineStyle(2, 0xeeeeee, 0.8);
+        this.threads.lineBetween(e.x, 0, e.x, e.y - 8);
+      } else if (type === 'monkey') {
+        this.updateMonkey(e, time);
+      }
       if (e.y > 650) e.destroy();
     });
+  }
+
+  updateMonkey(m, time) {
+    const dx = this.player.x - m.x;
+    m.setFlipX(dx < 0);
+    if (Math.abs(dx) > 520 || time < m.getData('nextThrow')) return;
+    m.setData('nextThrow', time + 2600);
+    m.setTexture('monkey2');
+    this.time.delayedCall(350, () => m.active && !m.getData('dead') && m.setTexture('monkey1'));
+    this.throwCoconut(m.x, m.y - 22, this.player.x, 0.85);
+  }
+
+  // joga um coco em arco na direção do alvo
+  throwCoconut(x, y, targetX, flight, extraVy = 0) {
+    const c = this.hazards.create(x, y, 'coconut').setDepth(7);
+    c.body.setAllowGravity(true);
+    c.body.setCircle(8, 2, 2);
+    c.setData('breaks', true);
+    c.setVelocity(Phaser.Math.Clamp((targetX - x) / flight, -480, 480), -560 + extraVy);
+    c.setAngularVelocity(300);
+    Sound.play('throw');
+    this.time.delayedCall(5000, () => c.active && c.destroy());
+  }
+
+  popHazard(h) {
+    if (!h.active) return;
+    this.particles.explode(6, h.x, h.y);
+    Sound.play(h.texture.key === 'bubble' ? 'bubble' : 'stomp');
+    h.destroy();
+  }
+
+  updateMovers() {
+    const pb = this.player.body;
+    this.movers.getChildren().forEach(m => {
+      const axis = m.getData('axis'), speed = m.getData('speed');
+      // o robô em cima do tronco anda junto com ele
+      const lastX = m.getData('lastX') ?? m.x;
+      const standing = Math.abs(pb.bottom - m.body.top) < 6 && pb.right > m.body.left && pb.left < m.body.right;
+      if (standing) this.player.x += m.x - lastX;
+      m.setData('lastX', m.x);
+      if (axis === 'x') {
+        if (m.x >= m.getData('max')) m.setVelocityX(-speed);
+        else if (m.x <= m.getData('min')) m.setVelocityX(speed);
+      } else {
+        if (m.y <= m.getData('min')) m.setVelocityY(speed);
+        else if (m.y >= m.getData('max')) m.setVelocityY(-speed);
+      }
+    });
+  }
+
+  bounceMushroom(m) {
+    const p = this.player;
+    if (!(p.body.touching.down || p.body.blocked.down) || p.body.bottom > m.body.top + 6) return;
+    p.setVelocityY(-MUSHROOM_JUMP);
+    this.jumpHeld = false;
+    this.lastGround = -1000;
+    Sound.play('boing');
+    this.tweens.add({ targets: m, scaleY: 0.75, scaleX: 1.15, duration: 90, yoyo: true });
   }
 
   updateSigns() {
@@ -312,7 +500,7 @@ class LevelScene extends Phaser.Scene {
     this.speechTimer = this.time.delayedCall(ms, () => UI.hideDialog('speech'));
   }
 
-  refreshHud() { UI.updateHud(this.state); }
+  refreshHud() { UI.updateHud(this.state, WEAPONS[this.weapon].icon); }
 
   addScore(n, x, y) {
     this.state.score += n;
@@ -324,7 +512,7 @@ class LevelScene extends Phaser.Scene {
     }
   }
 
-  // ---------- Itens e inimigos ----------
+  // ---------- Itens e contato com inimigos ----------
   collectCoin(coin) {
     coin.disableBody(true, true);
     this.state.coins++;
@@ -356,6 +544,7 @@ class LevelScene extends Phaser.Scene {
     enemy.setData('dead', true);
     enemy.body.enable = false;
     enemy.anims.stop();
+    enemy.clearTint();
     Sound.play(stomped ? 'stomp' : 'enemy');
     this.particles.explode(10, enemy.x, enemy.y);
     this.addScore(50, enemy.x, enemy.y - 20);
@@ -422,6 +611,7 @@ class LevelScene extends Phaser.Scene {
     UI.hideDialog();
     UI.ask(q, opts, correct => {
       if (correct) this.state.right++;
+      Review.record(q, correct);
       this.unfreeze();
       cb(correct);
     });
@@ -455,7 +645,7 @@ class LevelScene extends Phaser.Scene {
 
   touchDoor(door) {
     if (this.now < door.getData('wait') || this.frozen || door.getData('open')) return;
-    const q = makeEnglishQuestion(this.level.id, door.getData('word'));
+    const q = door.getData('sentence') ? makeSentenceQuestion() : makeEnglishQuestion(this.level.id, door.getData('word'));
     this.ask(q, { title: '🚪 Magic Door', rewardText: 'The door is open!', rewardTextPt: 'A porta abriu!' }, correct => {
       if (correct) {
         door.setData('open', true);
@@ -475,7 +665,7 @@ class LevelScene extends Phaser.Scene {
 
   // ---------- Chefão ----------
   startBoss() {
-    const B = this.level.boss;
+    const B = this.level.boss, cfg = BOSS_TYPES[B.type];
     this.bossStarted = true;
     const cam = this.cameras.main;
     this.physics.world.setBounds(B.arenaX, 0, 960, 700);
@@ -488,16 +678,11 @@ class LevelScene extends Phaser.Scene {
       }
     });
 
-    const boss = this.physics.add.sprite(B.x, -120, 'kingcrab1').setDepth(6);
-    boss.body.setSize(120, 72).setOffset(15, 56);
+    const boss = this.physics.add.sprite(B.x, -120, cfg.tex + '1').setDepth(6);
+    boss.body.setSize(cfg.size[0], cfg.size[1]).setOffset(cfg.offset[0], cfg.offset[1]);
     boss.setCollideWorldBounds(true);
-    boss.hp = B.hp;
-    boss.maxHp = B.hp;
-    boss.state = 'intro';
-    boss.invulnUntil = 0;
-    boss.nextAction = 0;
+    Object.assign(boss, { cfg, hp: B.hp, maxHp: B.hp, state: 'intro', invulnUntil: 0, nextAction: 0, lastAttack: null });
     this.boss = boss;
-    this.bubbles = this.physics.add.group({ allowGravity: false });
 
     this.physics.add.collider(boss, this.solids);
     this.physics.add.overlap(this.player, boss, () => this.touchBoss());
@@ -506,8 +691,6 @@ class LevelScene extends Phaser.Scene {
       (a === boss ? b : a).destroy();
       this.hitBoss();
     });
-    this.physics.add.overlap(this.player, this.bubbles, (p, bub) => { this.popBubble(bub); this.hurt(bub.x); });
-    this.physics.add.overlap(this.bullets, this.bubbles, (b, bub) => { b.destroy(); this.popBubble(bub); this.addScore(10, bub.x, bub.y); });
 
     UI.bossBar(B.name, 1);
     Sound.play('boss');
@@ -529,66 +712,129 @@ class LevelScene extends Phaser.Scene {
       return;
     }
     if (boss.state === 'talk') {
-      if (time > boss.nextAction) { boss.state = 'walk'; boss.play('kingwalk'); boss.nextAction = time + 1500; }
+      if (time > boss.nextAction) this.bossWalk(1500);
       return;
     }
 
     // segurança: nunca deixa o chefão atravessar o chão
-    if (boss.body.bottom > GROUND_Y + 30) { boss.setY(GROUND_Y - 63); boss.setVelocityY(0); }
+    if (boss.body.bottom > GROUND_Y + 30) { boss.y -= boss.body.bottom - GROUND_Y; boss.setVelocityY(0); }
 
     const toPlayer = p.x < boss.x ? -1 : 1;
-    const anger = boss.maxHp - boss.hp; // fica mais rápido a cada acerto
+    const anger = boss.maxHp - boss.hp; // fica mais rápido e bravo a cada acerto
     if (boss.state === 'walk') {
-      boss.setVelocityX(toPlayer * (70 + anger * 25));
-      if (time > boss.nextAction) {
-        if (Math.random() < 0.5) {
-          boss.state = 'jump';
-          boss.setVelocity(toPlayer * 180, -620);
-          boss.anims.stop();
-        } else {
-          boss.state = 'shoot';
-          boss.setVelocityX(0);
-          // aviso: pisca laranja antes de cuspir bolhas
-          boss.setTint(0xffb74d);
-          this.time.delayedCall(400, () => boss.state !== 'dead' && boss.clearTint());
-          this.time.delayedCall(450, () => this.bossShoot(1 + (anger > 0 ? 1 : 0)));
-          this.time.delayedCall(900, () => { if (boss.state === 'shoot') { boss.state = 'walk'; boss.nextAction = this.now + 1800 - anger * 250; } });
-        }
-      }
-    } else if (boss.state === 'jump') {
-      if (onGround && boss.body.velocity.y >= 0 && time > boss.nextAction + 300) {
-        boss.state = 'walk';
-        boss.play('kingwalk');
-        boss.nextAction = time + 1800 - anger * 250;
+      boss.setVelocityX(toPlayer * (boss.cfg.speed + anger * 25));
+      if (time > boss.nextAction) this.bossAttack(anger);
+    } else if (boss.state === 'air') {
+      if (onGround && boss.body.velocity.y >= 0 && time > boss.airSince + 250) {
+        const land = boss.onLand;
+        boss.onLand = null;
         this.cameras.main.shake(200, 0.008);
         Sound.play('stomp');
         this.particles.explode(14, boss.x, GROUND_Y - 4);
+        this.bossWalk(1800 - anger * 250);
+        if (land) land();
+      }
+    } else if (boss.state === 'charge') {
+      const hitWall = boss.body.blocked.left || boss.body.blocked.right;
+      if (hitWall || time > boss.chargeUntil) {
+        if (hitWall) { this.cameras.main.shake(250, 0.012); Sound.play('stomp'); }
+        this.bossWalk(1600 - anger * 200);
       }
     }
     // pisca enquanto está invencível
     boss.setAlpha(time < boss.invulnUntil ? (Math.floor(time / 100) % 2 ? 0.5 : 1) : 1);
   }
 
-  bossShoot(count) {
+  bossWalk(delay) {
     const boss = this.boss;
-    if (!boss || boss.state === 'dead' || this.ended) return;
+    boss.state = 'walk';
+    boss.clearTint();
+    boss.play(boss.cfg.tex + 'walk', true);
+    boss.nextAction = this.now + delay;
+  }
+
+  bossJump(vx, vy, onLand) {
+    const boss = this.boss;
+    boss.state = 'air';
+    boss.airSince = this.now;
+    boss.onLand = onLand || null;
+    boss.clearTint();
+    boss.anims.stop();
+    boss.setVelocity(vx, vy);
+  }
+
+  // escolhe um ataque (sem repetir o mesmo duas vezes seguidas)
+  bossAttack(anger) {
+    const boss = this.boss;
+    let list = boss.cfg.attacks.filter(a => a !== 'charge' || anger >= 1);
+    if (list.length > 1) list = list.filter(a => a !== boss.lastAttack);
+    const atk = pick(list);
+    boss.lastAttack = atk;
+    const dir = this.player.x < boss.x ? -1 : 1;
+    const later = (ms, fn) => this.time.delayedCall(ms, () => { if (boss.state !== 'dead' && !this.ended) fn(); });
+
+    if (atk === 'jump') {
+      this.bossJump(dir * 180, -620);
+    } else if (atk === 'bubbles') {
+      boss.state = 'act';
+      boss.setVelocityX(0);
+      boss.setTint(0xffb74d); // aviso antes de cuspir bolhas
+      later(450, () => { boss.clearTint(); this.bossBubbles(1 + (anger > 0 ? 1 : 0)); });
+      later(900, () => { if (boss.state === 'act') this.bossWalk(1800 - anger * 250); });
+    } else if (atk === 'pound') {
+      boss.state = 'act';
+      boss.setVelocityX(0);
+      boss.setTint(0xffca28);
+      later(350, () => this.bossJump(0, -560, () => this.bossShockwaves(anger)));
+    } else if (atk === 'throw') {
+      boss.state = 'act';
+      boss.setVelocityX(0);
+      boss.anims.stop();
+      boss.setTexture(boss.cfg.tex + '2');
+      later(350, () => {
+        const n = anger >= 2 ? 3 : 2;
+        for (let i = 0; i < n; i++) this.throwCoconut(boss.x + dir * 50, boss.y - 50, this.player.x + (i - 1) * 90, 0.8, -i * 60);
+      });
+      later(1000, () => { if (boss.state === 'act') this.bossWalk(1700 - anger * 250); });
+    } else if (atk === 'charge') {
+      boss.state = 'act';
+      boss.setVelocityX(0);
+      boss.setTint(0xff5252); // aviso: vai correr!
+      later(550, () => {
+        boss.clearTint();
+        boss.state = 'charge';
+        boss.chargeUntil = this.now + 1300;
+        boss.play(boss.cfg.tex + 'walk', true);
+        boss.setVelocityX((this.player.x < boss.x ? -1 : 1) * 400);
+      });
+    }
+  }
+
+  bossBubbles(count) {
+    const boss = this.boss;
     Sound.play('bubble');
     const dir = this.player.x < boss.x ? -1 : 1;
     for (let i = 0; i < count; i++) {
       // bolha baixa: pule! / bolha alta: fique no chão!
       const high = i === 1 || (count === 1 && Math.random() < 0.3);
-      const b = this.bubbles.create(boss.x + dir * 60, high ? GROUND_Y - 95 : GROUND_Y - 22, 'bubble').setDepth(7);
+      const b = this.hazards.create(boss.x + dir * 60, high ? GROUND_Y - 95 : GROUND_Y - 22, 'bubble').setDepth(7);
       b.setVelocityX(dir * (high ? 170 : 220));
       b.body.setCircle(11, 2, 2);
       this.time.delayedCall(5000, () => b.active && b.destroy());
     }
   }
 
-  popBubble(b) {
-    if (!b.active) return;
-    this.particles.explode(6, b.x, b.y);
-    Sound.play('bubble');
-    b.destroy();
+  // onda de choque dos dois lados: tem que pular!
+  bossShockwaves(anger) {
+    const boss = this.boss;
+    this.cameras.main.shake(350, 0.015);
+    [-1, 1].forEach(d => {
+      const w = this.hazards.create(boss.x + d * 50, GROUND_Y - 14, 'shockwave').setDepth(7);
+      w.body.setSize(34, 18).setOffset(5, 10);
+      w.setVelocityX(d * (240 + anger * 30));
+      w.setFlipX(d < 0);
+      this.time.delayedCall(4000, () => w.active && w.destroy());
+    });
   }
 
   touchBoss() {
@@ -606,10 +852,10 @@ class LevelScene extends Phaser.Scene {
   // Acertou o chefão: ele fica tonto e aparece uma conta. Só perde vida se acertar a conta!
   hitBoss() {
     const boss = this.boss;
-    if (this.now < boss.invulnUntil || boss.state === 'dead' || boss.state === 'talk' || this.frozen) return;
+    if (this.now < boss.invulnUntil || boss.state === 'dead' || boss.state === 'talk' || boss.state === 'intro' || this.frozen) return;
     boss.invulnUntil = this.now + 99999;
     boss.setVelocityX(0);
-    boss.setTint(0xffffff);
+    boss.setTintFill(0xffffff);
     Sound.play('bossHit');
     this.particles.explode(16, boss.x, boss.y);
     this.time.delayedCall(250, () => {
@@ -621,6 +867,7 @@ class LevelScene extends Phaser.Scene {
         this.player.setVelocity(away * 280, -300);
         this.invulnUntil = this.now + 1500;
         boss.invulnUntil = this.now + 1800;
+        this.hazards.clear(true, true);
         if (correct) {
           boss.hp--;
           UI.bossBar(this.level.boss.name, boss.hp / boss.maxHp);
@@ -630,13 +877,10 @@ class LevelScene extends Phaser.Scene {
           boss.setTintFill(0xff5252);
           this.time.delayedCall(200, () => boss.clearTint());
           if (boss.hp <= 0) { this.defeatBoss(); return; }
-          boss.setVelocity(-away * 200, -300);
-          boss.state = 'jump';
-          boss.nextAction = this.now;
+          this.bossJump(-away * 200, -300);
         } else {
           this.speech('👑 ' + this.level.boss.name, 'Ha ha! Wrong answer! Try again!', 'Rá rá! Resposta errada! Tente de novo!', 2200);
-          boss.state = 'walk';
-          boss.nextAction = this.now + 1500;
+          this.bossWalk(1500);
         }
       });
     });
@@ -647,7 +891,7 @@ class LevelScene extends Phaser.Scene {
     boss.state = 'dead';
     boss.anims.stop();
     boss.body.enable = false;
-    this.bubbles.clear(true, true);
+    this.hazards.clear(true, true);
     UI.bossBar(null);
     this.addScore(500, boss.x, boss.y - 100);
     this.speech('👑 ' + this.level.boss.name, this.level.boss.defeat.en, this.level.boss.defeat.pt, 4000);
@@ -673,7 +917,7 @@ class LevelScene extends Phaser.Scene {
     this.particles.explode(50, this.player.x, this.player.y);
     this.player.setVelocity(0, -300);
     this.addScore(this.state.lives * 100);
-    const save = Save.completeLevel(this.level.id, this.state.score);
+    const save = Save.completeLevel(this.level.id, this.state.score, this.state.coins);
     this.time.delayedCall(1200, () => {
       this.physics.pause();
       Game.showLevelComplete(this.level, this.state, save);

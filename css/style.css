@@ -229,3 +229,35 @@ body.touch #boss-bar:not(.hidden) ~ #dialog { top: 108px; }
   body.touch #rotate { display: flex; }
 }
 body.touch .opt-btn .key, body.touch #q-ok small { display: none; }
+
+/* ---------- Oficina, revisão e botões novos ---------- */
+.screen { z-index: 40; }
+#modal { z-index: 50; }
+.card-top-btns { display: flex; gap: 6px; }
+.translate-inline.listen { padding: 6px 10px; }
+.review-tag { font-size: 15px; background: #7e57c2; color: #fff; border-radius: 10px; padding: 2px 8px; vertical-align: middle; }
+.blank { color: #e65100; letter-spacing: 2px; }
+#hud-weapon { pointer-events: auto; cursor: pointer; }
+
+.shop-card { width: 700px; max-height: 520px; overflow-y: auto; padding: 14px 22px; }
+.wallet { font-size: 24px; font-weight: 700; background: #fff8e1; border-radius: 14px; padding: 4px 14px; box-shadow: 0 3px 0 #c79100; }
+#shop-items { display: flex; flex-direction: column; gap: 8px; margin: 8px 0; text-align: left; }
+.shop-item { display: flex; align-items: center; gap: 12px; background: #fff; border: 3px solid #d7ccc8; border-radius: 16px; padding: 8px 12px; }
+.shop-item.locked { opacity: .55; }
+.shop-icon { font-size: 36px; width: 48px; text-align: center; }
+.shop-info { flex: 1; font-size: 18px; }
+.shop-info small { display: block; font-size: 14px; color: #6d4c41; }
+.shop-info .pt { font-size: 14px; }
+.shop-stars { color: #ffb300; letter-spacing: 2px; }
+.shop-action { text-align: center; min-width: 140px; }
+.shop-buy {
+  cursor: pointer; border: none; border-radius: 14px; padding: 8px 14px;
+  font: 700 18px 'Fredoka', 'Trebuchet MS', sans-serif; background: #43a047; color: #fff; box-shadow: 0 4px 0 #1b5e20;
+}
+.shop-buy:disabled { background: #bdbdbd; box-shadow: 0 4px 0 #757575; cursor: not-allowed; }
+.shop-need { display: block; font-size: 13px; color: #c62828; margin-top: 4px; }
+.shop-lock, .shop-max { font-weight: 700; color: #6d4c41; }
+.shop-max { color: #2e7d32; }
+
+.touch-btn.small { width: 78px; height: 78px; font-size: 30px; }
+.touch-btn.small small { font-size: 11px; }
